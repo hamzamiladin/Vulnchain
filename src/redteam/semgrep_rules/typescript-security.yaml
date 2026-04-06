@@ -1,0 +1,94 @@
+rules:
+  - id: typescript-eval-injection
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: eval() with dynamic input is a code injection vector.
+    metadata:
+      fix: Replace eval() with a safe alternative (JSON.parse, Function constructor avoided)
+      owasp: A03:2021 – Injection
+    pattern-either:
+      - pattern: eval($X)
+      - pattern: new Function($X)
+      - patterns:
+          - pattern: setTimeout($X, ...)
+          - metavariable-type:
+              metavariable: $X
+              types: [string]
+      - patterns:
+          - pattern: setInterval($X, ...)
+          - metavariable-type:
+              metavariable: $X
+              types: [string]
+
+  - id: typescript-prototype-pollution
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: Assigning to __proto__ or constructor.prototype may cause prototype pollution.
+    metadata:
+      fix: Use Object.create(null) or validate/sanitize object keys
+      owasp: A08:2021 – Software and Data Integrity Failures
+    pattern-either:
+      - pattern: $OBJ["__proto__"] = ...
+      - pattern: $OBJ.__proto__ = ...
+      - pattern: $OBJ["constructor"]["prototype"] = ...
+
+  - id: typescript-jwt-none-algorithm
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: JWT verified without specifying allowed algorithms — "none" algorithm attack possible.
+    metadata:
+      fix: "Pass { algorithms: ['RS256'] } explicitly to jwt.verify() to prevent the none algorithm attack"
+      owasp: A02:2021 – Cryptographic Failures
+    pattern-either:
+      - pattern: jwt.verify($TOKEN, $SECRET)
+      - pattern: jsonwebtoken.verify($TOKEN, $SECRET)
+
+  - id: typescript-dangerous-html
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: Setting innerHTML with potentially untrusted content — XSS risk.
+    metadata:
+      fix: Use textContent or DOMPurify.sanitize() before assigning
+      owasp: A03:2021 – Injection
+    pattern-either:
+      - pattern: $EL.innerHTML = $VAR
+      - pattern: document.write($VAR)
+
+  - id: typescript-lodash-prototype-pollution
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >
+      Prototype pollution via lodash with user-controlled key.
+      An attacker can pass __proto__ or constructor.prototype as the key path to
+      corrupt Object.prototype. Validate keys against an allowlist.
+    metadata:
+      cwe: CWE-1321
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern-either:
+      - pattern: _.set($OBJ, $KEY, $VAL)
+      - pattern: _.setWith($OBJ, $KEY, $VAL, ...)
+      - pattern: _.merge($OBJ, $SOURCE)
+
+  - id: typescript-unsafe-json-cast
+    languages: [typescript]
+    severity: WARNING
+    message: >
+      Unsafe type assertion after JSON.parse: casting untrusted data to a typed
+      interface bypasses TypeScript's type safety at runtime.
+      Use a runtime validation library (zod, io-ts, ajv) to validate the shape.
+    metadata:
+      cwe: CWE-20
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern: JSON.parse($INPUT) as $TYPE
+
+  - id: typescript-any-type-security-bypass
+    languages: [typescript]
+    severity: WARNING
+    message: >
+      Explicit 'any' cast used on request/response data disables TypeScript
+      type checking. Consider using a validation schema instead.
+    metadata:
+      cwe: CWE-20
+    pattern-either:
+      - pattern: ($REQ.body as any)
+      - pattern: ($REQ.query as any)

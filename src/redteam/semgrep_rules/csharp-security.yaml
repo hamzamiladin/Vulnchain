@@ -1,0 +1,219 @@
+rules:
+  - id: csharp-sql-string-concat
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      SQL query built with string concatenation — potential SQL injection.
+      Use parameterized queries or an ORM instead.
+    metadata:
+      fix: Use SqlParameter or Dapper parameterized queries
+      owasp: A03:2021 – Injection
+    pattern-either:
+      - pattern: |
+          $CONN.Execute("..." + $VAR)
+      - pattern: |
+          $CONN.ExecuteScalar("..." + $VAR)
+      - pattern: |
+          $CONN.ExecuteReader("..." + $VAR)
+      - pattern: |
+          new SqlCommand("..." + $VAR, ...)
+      - pattern: |
+          string.Format("...{0}...", ...) + $VAR
+
+  - id: csharp-hardcoded-secret
+    languages: [csharp]
+    severity: ERROR
+    message: Hardcoded credential or secret detected.
+    metadata:
+      fix: Use environment variables or a secrets manager (e.g., Azure Key Vault)
+      owasp: A02:2021 – Cryptographic Failures
+    patterns:
+      - pattern: string $X = "...";
+      - metavariable-regex:
+          metavariable: $X
+          regex: "(?i).*(password|passwd|secret|apikey|api_key|token|credential).*"
+
+  - id: csharp-xxe-xmldocument
+    languages: [csharp]
+    severity: WARNING
+    message: XmlDocument with DTD processing enabled — XXE risk.
+    metadata:
+      fix: Set XmlReaderSettings.DtdProcessing = DtdProcessing.Prohibit
+      owasp: A05:2021 – Security Misconfiguration
+    pattern: |
+      var $DOC = new XmlDocument();
+      $DOC.LoadXml($DATA);
+
+  - id: csharp-open-redirect
+    languages: [csharp]
+    severity: WARNING
+    message: Potential open redirect using user-supplied input.
+    metadata:
+      fix: Validate redirect URLs against an allowlist
+      owasp: A01:2021 – Broken Access Control
+    pattern-either:
+      - pattern: |
+          return Redirect($REQUEST.QueryString[...])
+      - pattern: |
+          return Redirect($REQUEST.Form[...])
+
+  - id: csharp-command-injection
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Command injection: user-controlled data in Process.Start arguments.
+      Validate and escape all user-supplied arguments.
+    metadata:
+      cwe: CWE-78
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: Process.Start("cmd", "/c " + $VAR)
+      - pattern: Process.Start("cmd.exe", "/c " + $VAR)
+      - pattern: Process.Start("bash", "-c " + $VAR)
+      - pattern: Process.Start($VAR)
+      - pattern: |
+          new ProcessStartInfo {
+            ...,
+            Arguments = "..." + $VAR,
+            ...
+          }
+
+  - id: csharp-path-traversal
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Path traversal: user-controlled data used as file path.
+      Use Path.GetFullPath() and verify it starts with the allowed base directory.
+    metadata:
+      cwe: CWE-22
+      owasp: "A01:2021 – Broken Access Control"
+    pattern-either:
+      - pattern: File.ReadAllText($REQUEST.QueryString[...])
+      - pattern: File.ReadAllText($REQUEST.Form[...])
+      - pattern: File.ReadAllBytes($REQUEST.QueryString[...])
+      - pattern: new FileStream($REQUEST.QueryString[...], ...)
+      - pattern: File.Open($REQUEST.QueryString[...], ...)
+
+  - id: csharp-ssrf-httpclient
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      SSRF: HttpClient making request to user-controlled URL.
+      Validate and allowlist the URL before making outbound requests.
+    metadata:
+      cwe: CWE-918
+      owasp: "A10:2021 – Server-Side Request Forgery"
+    pattern-either:
+      - pattern: $CLIENT.GetAsync($REQUEST.QueryString[...])
+      - pattern: $CLIENT.GetAsync($REQUEST.Form[...])
+      - pattern: $CLIENT.PostAsync($REQUEST.QueryString[...], ...)
+      - pattern: new HttpClient().GetAsync($VAR)
+
+  - id: csharp-json-typehandling-all
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Insecure deserialization: JsonConvert.DeserializeObject with TypeNameHandling.All
+      or TypeNameHandling.Auto allows an attacker to specify the type to instantiate,
+      enabling remote code execution. Use TypeNameHandling.None.
+    metadata:
+      cwe: CWE-502
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern-either:
+      - pattern: JsonConvert.DeserializeObject($JSON, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All, ... })
+      - pattern: JsonConvert.DeserializeObject($JSON, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Auto, ... })
+      - pattern: JsonConvert.DeserializeObject($JSON, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Objects, ... })
+
+  - id: csharp-ldap-injection
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      LDAP injection: user-controlled data in DirectorySearcher filter.
+      Use System.DirectoryServices.Protocols.LdapEncoder.FilterEncode() on all inputs.
+    metadata:
+      cwe: CWE-90
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: new DirectorySearcher { Filter = "..." + $REQUEST.QueryString[...] }
+      - pattern: $SEARCHER.Filter = "..." + $REQUEST.QueryString[...]
+      - pattern: $SEARCHER.Filter = "..." + $REQUEST.Form[...]
+
+  - id: csharp-weak-cipher-des
+    languages: [csharp]
+    severity: WARNING
+    message: >
+      Weak cipher: DES/3DES are cryptographically broken. Use AesGcm or AesCng.
+    metadata:
+      cwe: CWE-327
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern-either:
+      - pattern: new DESCryptoServiceProvider()
+      - pattern: new TripleDESCryptoServiceProvider()
+      - pattern: new RC2CryptoServiceProvider()
+      - pattern: DES.Create()
+      - pattern: TripleDES.Create()
+
+  - id: csharp-viewstate-mac-disabled
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      ViewState MAC disabled: setting enableViewStateMac="false" removes integrity
+      protection and allows tampering. Always keep ViewState MAC enabled.
+    metadata:
+      cwe: CWE-345
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern-regex: 'enableViewStateMac\s*=\s*"false"'
+
+  # ── BinaryFormatter Insecure Deserialization ──────────────────────────────────
+
+  - id: csharp-binaryformatter-deserialize
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Insecure deserialization: BinaryFormatter.Deserialize() on untrusted data
+      can trigger arbitrary code execution via .NET gadget chains.
+      Microsoft has marked BinaryFormatter obsolete (CA2300-CA2302). Use
+      System.Text.Json.JsonSerializer or MessagePack with a type allowlist instead.
+    metadata:
+      cwe: CWE-502
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+      references:
+        - "https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide"
+    pattern-either:
+      - pattern: new BinaryFormatter().Deserialize($STREAM)
+      - pattern: |
+          var $FMT = new BinaryFormatter();
+          ...
+          $FMT.Deserialize(...)
+      - pattern: |
+          BinaryFormatter $FMT = new BinaryFormatter();
+          ...
+          $FMT.Deserialize(...)
+
+  - id: csharp-netdatacontractserializer
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Insecure deserialization: NetDataContractSerializer retains type information
+      and is exploitable via gadget chains similar to BinaryFormatter.
+      Use DataContractJsonSerializer with a known-types allowlist.
+    metadata:
+      cwe: CWE-502
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern-either:
+      - pattern: new NetDataContractSerializer().ReadObject($STREAM)
+      - pattern: |
+          NetDataContractSerializer $SER = new NetDataContractSerializer();
+          ...
+          $SER.ReadObject(...)
+
+  - id: csharp-losformatter-deserialize
+    languages: [csharp]
+    severity: ERROR
+    message: >
+      Insecure deserialization: LosFormatter uses BinaryFormatter internally
+      and is exploitable. Use System.Text.Json for serialization.
+    metadata:
+      cwe: CWE-502
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern: new LosFormatter().Deserialize(...)

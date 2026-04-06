@@ -1,0 +1,57 @@
+name: Feature Request
+description: Propose a new feature or improvement
+labels: ["enhancement"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea that would make RedTeam Agent more useful? We'd love to hear it.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or gap this fills.
+      placeholder: "When scanning Go repos, there's no detection for..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work? Include examples if possible.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - New Semgrep rule
+        - New Joern CPG script
+        - Pipeline stage improvement
+        - Dashboard / UI
+        - API / output format
+        - Performance
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches you thought about?
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Are you willing to open a PR?
+      options:
+        - label: "Yes, I can implement this"
+        - label: "I can help with testing/review"
+        - label: "No, just proposing"

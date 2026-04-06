@@ -1,0 +1,43 @@
+rules:
+  - id: swift-ats-disabled
+    languages: [swift]
+    severity: WARNING
+    message: NSAllowsArbitraryLoads disables App Transport Security — network traffic may be cleartext.
+    metadata:
+      fix: Remove NSAllowsArbitraryLoads or restrict to specific domains
+      owasp: A02:2021 – Cryptographic Failures
+    pattern: |
+      NSAllowsArbitraryLoads
+
+  - id: swift-keychain-kSecAttrAccessibleAlways
+    languages: [swift]
+    severity: WARNING
+    message: Keychain item accessible even when device is locked — prefer kSecAttrAccessibleWhenUnlockedThisDeviceOnly.
+    metadata:
+      fix: Use kSecAttrAccessibleWhenUnlockedThisDeviceOnly for sensitive data
+      owasp: A02:2021 – Cryptographic Failures
+    pattern-either:
+      - pattern: kSecAttrAccessibleAlways
+      - pattern: kSecAttrAccessibleAlwaysThisDeviceOnly
+
+  - id: swift-md5-sha1-usage
+    languages: [swift]
+    severity: WARNING
+    message: MD5/SHA1 is cryptographically weak — use SHA-256 or higher.
+    metadata:
+      fix: Replace with SHA-256 via CryptoKit or CommonCrypto
+      owasp: A02:2021 – Cryptographic Failures
+    pattern-either:
+      - pattern: CC_MD5(...)
+      - pattern: CC_SHA1(...)
+      - pattern: Insecure.MD5.hash(...)
+      - pattern: Insecure.SHA1.hash(...)
+
+  - id: swift-url-scheme-open
+    languages: [swift]
+    severity: INFO
+    message: URL scheme opened without validation — deep link hijacking risk.
+    metadata:
+      fix: Validate the URL scheme and host against an allowlist before opening
+      owasp: A01:2021 – Broken Access Control
+    pattern: UIApplication.shared.open($URL, ...)

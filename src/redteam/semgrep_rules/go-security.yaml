@@ -1,0 +1,186 @@
+rules:
+  # ── SQL Injection ────────────────────────────────────────────────────────────
+
+  - id: go-sql-injection-concat
+    languages: [go]
+    severity: ERROR
+    message: >
+      SQL injection: query built with string concatenation.
+      Use parameterized queries: db.Query("SELECT ... WHERE x = ?", val)
+    metadata:
+      cwe: CWE-89
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: $DB.Query("..." + $VAR)
+      - pattern: $DB.QueryRow("..." + $VAR)
+      - pattern: $DB.Exec("..." + $VAR)
+      - pattern: $DB.QueryContext($CTX, "..." + $VAR)
+      - pattern: $DB.ExecContext($CTX, "..." + $VAR)
+      - pattern: fmt.Sprintf("SELECT ...%s...", $VAR)
+
+  # ── Command Injection ────────────────────────────────────────────────────────
+
+  - id: go-command-injection
+    languages: [go]
+    severity: ERROR
+    message: >
+      Command injection: user-controlled data in exec.Command().
+      Avoid passing user input as command name or unsanitized shell args.
+    metadata:
+      cwe: CWE-78
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: exec.Command($VAR, ...)
+      - pattern: exec.CommandContext($CTX, $VAR, ...)
+
+  # ── Path Traversal ───────────────────────────────────────────────────────────
+
+  - id: go-path-traversal
+    languages: [go]
+    severity: ERROR
+    message: >
+      Path traversal: user-controlled path used in file operations without cleaning.
+      Use filepath.Clean() and verify the result starts with the allowed base directory.
+    metadata:
+      cwe: CWE-22
+      owasp: "A01:2021 – Broken Access Control"
+    pattern-either:
+      - pattern: os.Open($R.URL.Query().Get(...))
+      - pattern: os.Open($R.FormValue(...))
+      - pattern: ioutil.ReadFile($R.URL.Query().Get(...))
+      - pattern: ioutil.ReadFile($R.FormValue(...))
+      - pattern: os.ReadFile($R.URL.Query().Get(...))
+      - pattern: os.ReadFile($R.FormValue(...))
+      - pattern: http.ServeFile($W, $R, $R.URL.Query().Get(...))
+
+  # ── SSRF ─────────────────────────────────────────────────────────────────────
+
+  - id: go-ssrf-http-get
+    languages: [go]
+    severity: ERROR
+    message: >
+      SSRF: http.Get/Post called with user-controlled URL.
+      Validate and allowlist the URL scheme and host before making outbound requests.
+    metadata:
+      cwe: CWE-918
+      owasp: "A10:2021 – Server-Side Request Forgery"
+    pattern-either:
+      - pattern: http.Get($R.URL.Query().Get(...))
+      - pattern: http.Get($R.FormValue(...))
+      - pattern: http.Post($R.URL.Query().Get(...), ...)
+      - pattern: $CLIENT.Get($R.URL.Query().Get(...))
+      - pattern: $CLIENT.Get($R.FormValue(...))
+
+  # ── TLS / Certificate Verification ──────────────────────────────────────────
+
+  - id: go-tls-insecure-skip-verify
+    languages: [go]
+    severity: ERROR
+    message: >
+      TLS certificate verification disabled (InsecureSkipVerify: true).
+      This makes connections vulnerable to MITM attacks. Remove this in production.
+    metadata:
+      cwe: CWE-295
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern: |
+      tls.Config{..., InsecureSkipVerify: true, ...}
+
+  - id: go-http-insecure-skip-verify-transport
+    languages: [go]
+    severity: ERROR
+    message: >
+      TLS certificate verification disabled in HTTP transport.
+    metadata:
+      cwe: CWE-295
+      owasp: "A02:2021 – Cryptographic Failures"
+    patterns:
+      - pattern: |
+          &http.Transport{
+            ...,
+            TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+            ...,
+          }
+
+  # ── Hardcoded Credentials ────────────────────────────────────────────────────
+
+  - id: go-hardcoded-secret
+    languages: [go]
+    severity: WARNING
+    message: >
+      Hardcoded credential detected. Use environment variables or a secrets manager.
+    metadata:
+      cwe: CWE-798
+      owasp: "A07:2021 – Identification and Authentication Failures"
+    pattern-either:
+      - patterns:
+          - pattern: const $VAR = "..."
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: "(?i).*(password|passwd|secret|apikey|api_key|token|credential|private_?key).*"
+      - patterns:
+          - pattern: var $VAR = "..."
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: "(?i).*(password|passwd|secret|apikey|api_key|token|credential|private_?key).*"
+
+  # ── Weak Random ──────────────────────────────────────────────────────────────
+
+  - id: go-insecure-random
+    languages: [go]
+    severity: WARNING
+    message: >
+      math/rand is not cryptographically secure. Use crypto/rand for
+      security-sensitive values (tokens, session IDs, salts).
+    metadata:
+      cwe: CWE-338
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern-either:
+      - pattern: rand.Intn(...)
+      - pattern: rand.Int63n(...)
+      - pattern: rand.Float64()
+      - pattern: rand.New(rand.NewSource(...))
+
+  # ── Open Redirect ────────────────────────────────────────────────────────────
+
+  - id: go-open-redirect
+    languages: [go]
+    severity: WARNING
+    message: >
+      Open redirect: user-controlled URL passed to http.Redirect.
+      Validate against an allowlist of trusted redirect destinations.
+    metadata:
+      cwe: CWE-601
+      owasp: "A01:2021 – Broken Access Control"
+    pattern-either:
+      - pattern: http.Redirect($W, $R, $R.URL.Query().Get(...), ...)
+      - pattern: http.Redirect($W, $R, $R.FormValue(...), ...)
+
+  # ── Template Injection ───────────────────────────────────────────────────────
+
+  - id: go-template-injection-html
+    languages: [go]
+    severity: ERROR
+    message: >
+      Template injection: html/template parsed from user-controlled input
+      can allow XSS or code execution. Use only static template strings.
+    metadata:
+      cwe: CWE-94
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: template.New("...").Parse($VAR)
+      - pattern: html_template.New("...").Parse($VAR)
+
+  # ── Misconfiguration ─────────────────────────────────────────────────────────
+
+  - id: go-weak-cipher-des
+    languages: [go]
+    severity: WARNING
+    message: >
+      Weak cipher: DES is cryptographically broken. Use AES-256-GCM.
+    metadata:
+      cwe: CWE-327
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern-either:
+      - pattern: des.NewCipher(...)
+      - pattern: des.NewTripleDESCipher(...)
+      - pattern: rc4.NewCipher(...)

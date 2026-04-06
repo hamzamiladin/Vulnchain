@@ -1,0 +1,510 @@
+rules:
+  # ── Injection ────────────────────────────────────────────────────────────────
+
+  - id: python-sql-injection
+    pattern-either:
+      - pattern: $CUR.execute("..." % ...)
+      - pattern: $CUR.execute("..." .format(...))
+      - pattern: $CUR.execute(f"...")
+      - pattern: $DB.execute("..." % ...)
+      - pattern: $DB.execute("..." .format(...))
+      - pattern: $DB.execute(f"...")
+    message: >
+      SQL injection: SQL query constructed via string formatting.
+      Use parameterized queries: cursor.execute("SELECT ... WHERE x = %s", (value,))
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+      owasp: "A03:2021 – Injection"
+
+  - id: python-sqlalchemy-raw
+    pattern-either:
+      - pattern: $SESSION.execute(text("..." % ...))
+      - pattern: $SESSION.execute(text(f"..."))
+      - pattern: $DB.query($MODEL).from_statement(text(f"..."))
+    message: >
+      SQL injection via SQLAlchemy text(). Always use bound parameters:
+      text("SELECT ... WHERE x = :val").bindparams(val=user_input)
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+      owasp: "A03:2021 – Injection"
+
+  - id: python-django-raw-sql
+    pattern-either:
+      - pattern: $MODEL.objects.raw(f"...")
+      - pattern: $MODEL.objects.raw("..." % ...)
+      - pattern: $MODEL.objects.raw("..." .format(...))
+      - pattern: $CONN.execute(f"...")
+    message: >
+      Django raw SQL with string formatting — vulnerable to SQL injection.
+      Use parameterised raw(): Model.objects.raw("... WHERE x = %s", [value])
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+      owasp: "A03:2021 – Injection"
+
+  - id: python-command-injection
+    pattern-either:
+      - pattern: subprocess.call($CMD, shell=True)
+      - pattern: subprocess.run($CMD, shell=True)
+      - pattern: subprocess.Popen($CMD, shell=True)
+      - pattern: os.system(...)
+      - pattern: os.popen(...)
+    message: >
+      Command injection risk. Avoid shell=True with user-controlled input.
+      Pass arguments as a list: subprocess.run(["cmd", arg], shell=False)
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-78
+      owasp: "A03:2021 – Injection"
+
+  - id: python-jinja2-template-injection
+    pattern-either:
+      - pattern: render_template_string($TMPL, ...)
+      - pattern: jinja2.Environment(...).from_string($TMPL).render(...)
+    message: >
+      Server-Side Template Injection: user-controlled string passed to Jinja2 render.
+      An attacker can execute arbitrary Python. Use render_template() with a static file.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-94
+      owasp: "A03:2021 – Injection"
+
+  - id: python-path-traversal
+    patterns:
+      - pattern: open($PATH, ...)
+      - metavariable-pattern:
+          metavariable: $PATH
+          patterns:
+            - pattern-either:
+                - pattern: request.args.get(...)
+                - pattern: request.form.get(...)
+                - pattern: request.GET.get(...)
+                - pattern: request.POST.get(...)
+    message: >
+      Path traversal: file path derived from request parameter.
+      Validate/sanitize with os.path.realpath() and restrict to an allowed directory.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-22
+      owasp: "A01:2021 – Broken Access Control"
+
+  # ── SSRF ─────────────────────────────────────────────────────────────────────
+
+  - id: python-ssrf-requests
+    pattern-either:
+      - patterns:
+          - pattern: requests.get($URL, ...)
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern-either:
+                    - pattern: request.args.get(...)
+                    - pattern: request.form.get(...)
+                    - pattern: request.GET.get(...)
+      - patterns:
+          - pattern: requests.post($URL, ...)
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern-either:
+                    - pattern: request.args.get(...)
+                    - pattern: request.form.get(...)
+    message: >
+      SSRF: HTTP request to user-controlled URL. Validate/allowlist the URL
+      before making outbound requests.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-918
+      owasp: "A10:2021 – Server-Side Request Forgery"
+
+  # ── Authentication / Cryptography ────────────────────────────────────────────
+
+  - id: python-hardcoded-secret
+    patterns:
+      - pattern: $VAR = "..."
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: "(?i).*(password|passwd|secret|token|api_key|access_key|private_key|credential).*"
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: "^(?!.*environ).*"
+    message: >
+      Hardcoded credential detected. Use environment variables or a secrets manager.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-798
+      owasp: "A07:2021 – Identification and Authentication Failures"
+
+  - id: python-weak-hash
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+    message: >
+      Weak hash: MD5 and SHA1 are cryptographically broken for security uses.
+      Use hashlib.sha256() or bcrypt/argon2 for passwords.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-328
+      owasp: "A02:2021 – Cryptographic Failures"
+
+  - id: python-jwt-none-algorithm
+    patterns:
+      - pattern: jwt.decode($TOKEN, $SECRET, ...)
+      - metavariable-regex:
+          metavariable: $SECRET
+          regex: ".*[Nn]one.*|.*algorithms.*none.*"
+    message: >
+      JWT decoded with 'none' algorithm allowed — attackers can forge tokens.
+      Always specify a strong algorithm: algorithms=["RS256"] or ["HS256"]
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-347
+      owasp: "A02:2021 – Cryptographic Failures"
+
+  # ── Deserialization ──────────────────────────────────────────────────────────
+
+  - id: python-pickle-deserialization
+    pattern-either:
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+      - pattern: cPickle.loads(...)
+    message: >
+      Insecure deserialization via pickle. Pickle can execute arbitrary code.
+      Use JSON or another safe format for untrusted data.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-502
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+
+  - id: python-yaml-load-unsafe
+    pattern: yaml.load($X)
+    message: >
+      yaml.load() without Loader is unsafe and can execute arbitrary Python.
+      Use yaml.safe_load() instead.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-502
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+
+  # ── Misconfiguration ─────────────────────────────────────────────────────────
+
+  - id: python-flask-debug-true
+    pattern: app.run(..., debug=True, ...)
+    message: >
+      Flask debug mode enabled — exposes an interactive debugger to any visitor.
+      Never enable debug mode in production.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-94
+      owasp: "A05:2021 – Security Misconfiguration"
+
+  - id: python-flask-csrf-missing
+    patterns:
+      - pattern: |
+          @$APP.route($PATH, methods=[..., "POST", ...])
+          def $FUNC(...):
+              ...
+      - pattern-not: |
+          @$APP.route($PATH, methods=[..., "POST", ...])
+          @csrf.exempt
+          def $FUNC(...):
+              ...
+      - pattern-not-inside: |
+          csrf = CSRFProtect(...)
+          ...
+    message: >
+      Flask POST handler with no visible CSRF protection.
+      Use Flask-WTF CSRFProtect or add @csrf.exempt only for intentionally public APIs.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-352
+      owasp: "A01:2021 – Broken Access Control"
+
+  - id: python-django-csrf-exempt
+    pattern: |
+      @csrf_exempt
+      def $FUNC(...):
+          ...
+    message: >
+      Django CSRF protection explicitly disabled. Ensure this endpoint genuinely
+      does not require CSRF (e.g., machine-to-machine API with token auth).
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-352
+      owasp: "A01:2021 – Broken Access Control"
+
+  - id: python-assert-auth
+    pattern: assert $X, $MSG
+    message: >
+      Using assert for security checks is unsafe — Python -O strips assert statements.
+      Use explicit if/raise instead.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-617
+
+  - id: python-open-redirect
+    patterns:
+      - pattern: redirect($URL)
+      - metavariable-pattern:
+          metavariable: $URL
+          patterns:
+            - pattern: request.args.get(...)
+    message: >
+      Open redirect: redirecting to a user-supplied URL without validation.
+      Validate the URL against an allowlist of trusted domains.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-601
+      owasp: "A01:2021 – Broken Access Control"
+
+  - id: python-insecure-random
+    pattern-either:
+      - pattern: random.random()
+      - pattern: random.randint(...)
+      - pattern: random.choice(...)
+    message: >
+      python random module is not cryptographically secure.
+      Use secrets.token_hex() or secrets.SystemRandom() for security-sensitive values.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-338
+      owasp: "A02:2021 – Cryptographic Failures"
+
+  # ── XML External Entity (XXE) ─────────────────────────────────────────────
+
+  - id: python-xxe-elementtree
+    pattern-either:
+      - pattern: xml.etree.ElementTree.parse($FILE)
+      - pattern: ET.parse($FILE)
+      - pattern: ElementTree.parse($FILE)
+    message: >
+      Python's xml.etree.ElementTree is vulnerable to XXE/Billion Laughs attacks
+      when parsing untrusted XML. Use defusedxml.ElementTree.parse() instead.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-611
+      owasp: "A05:2021 – Security Misconfiguration"
+
+  - id: python-xxe-minidom
+    pattern-either:
+      - pattern: xml.dom.minidom.parseString($INPUT)
+      - pattern: minidom.parseString($INPUT)
+      - pattern: xml.dom.minidom.parse($FILE)
+    message: >
+      xml.dom.minidom is vulnerable to XXE. Use defusedxml.minidom instead.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-611
+      owasp: "A05:2021 – Security Misconfiguration"
+
+  - id: python-lxml-no-entity-protection
+    patterns:
+      - pattern: lxml.etree.parse($FILE)
+      - pattern-not: lxml.etree.parse($FILE, parser=...)
+    message: >
+      lxml.etree.parse without a safe parser may expand external entities.
+      Use lxml.etree.XMLParser(resolve_entities=False, no_network=True).
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-611
+      owasp: "A05:2021 – Security Misconfiguration"
+
+  # ── SSRF via httpx ────────────────────────────────────────────────────────
+
+  - id: python-ssrf-httpx
+    pattern-either:
+      - patterns:
+          - pattern: httpx.get($URL, ...)
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern-either:
+                    - pattern: request.args.get(...)
+                    - pattern: request.form.get(...)
+                    - pattern: request.GET.get(...)
+      - patterns:
+          - pattern: httpx.post($URL, ...)
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern: request.args.get(...)
+    message: >
+      SSRF: httpx request to user-controlled URL. Validate/allowlist the URL
+      before making outbound requests.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-918
+      owasp: "A10:2021 – Server-Side Request Forgery"
+
+  # ── Zip/Tar Path Traversal (Zip Slip) ────────────────────────────────────
+
+  - id: python-zipfile-traversal
+    patterns:
+      - pattern: $ZF.extractall(...)
+      - pattern-not-inside: |
+          for $MEMBER in $ZF.namelist():
+              if ".." in $MEMBER:
+                  ...
+    message: >
+      Zip Slip: ZipFile.extractall() without path validation can overwrite arbitrary files.
+      Validate each member name does not contain ".." before extracting.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-22
+      owasp: "A01:2021 – Broken Access Control"
+
+  - id: python-tarfile-traversal
+    pattern: $TF.extractall(...)
+    message: >
+      Zip Slip via tarfile: tarfile.extractall() can overwrite arbitrary files if
+      the archive contains members with ".." in their path.
+      Filter members: [m for m in tf.getmembers() if not m.name.startswith('/') and '..' not in m.name]
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-22
+      owasp: "A01:2021 – Broken Access Control"
+
+  # ── LDAP Injection ────────────────────────────────────────────────────────
+
+  - id: python-ldap-injection
+    pattern-either:
+      - patterns:
+          - pattern: $CONN.search_s($BASE, $SCOPE, $FILTER)
+          - metavariable-pattern:
+              metavariable: $FILTER
+              patterns:
+                - pattern-either:
+                    - pattern: '"..." + $VAR'
+                    - pattern: f"..."
+                    - pattern: '"...".format(...)'
+      - patterns:
+          - pattern: $CONN.search($BASE, $SCOPE, $FILTER)
+          - metavariable-pattern:
+              metavariable: $FILTER
+              patterns:
+                - pattern: '"..." + $VAR'
+    message: >
+      LDAP injection: user-controlled data in LDAP filter without escaping.
+      Use ldap.filter.escape_filter_chars() on all user inputs.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-90
+      owasp: "A03:2021 – Injection"
+
+  # ── Subprocess with Shell and User Input ─────────────────────────────────
+
+  - id: python-subprocess-shell-fstring
+    pattern-either:
+      - pattern: subprocess.run(f"...", shell=True)
+      - pattern: subprocess.call(f"...", shell=True)
+      - pattern: subprocess.Popen(f"...", shell=True)
+      - pattern: subprocess.check_output(f"...", shell=True)
+    message: >
+      Command injection: f-string passed to subprocess with shell=True allows
+      argument injection. Use a list of arguments with shell=False.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-78
+      owasp: "A03:2021 – Injection"
+
+  # ── Unsafe shelve (uses pickle internally) ───────────────────────────────
+
+  - id: python-shelve-user-controlled-key
+    languages: [python]
+    severity: WARNING
+    message: >
+      shelve uses pickle internally. Opening a shelve database whose path or
+      contents are user-controlled can lead to arbitrary code execution via
+      pickle deserialization. Use a safe serialization format (json/msgpack)
+      for user-influenced data.
+    metadata:
+      cwe: CWE-502
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern-either:
+      - patterns:
+          - pattern: shelve.open($PATH)
+          - metavariable-pattern:
+              metavariable: $PATH
+              patterns:
+                - pattern-either:
+                    - pattern: request.args.get(...)
+                    - pattern: request.form.get(...)
+                    - pattern: request.GET.get(...)
+
+  # ── Jinja2 SSTI ───────────────────────────────────────────────────────────
+
+  - id: python-jinja2-ssti-from-string
+    languages: [python]
+    severity: ERROR
+    message: >
+      SSTI: Jinja2 Template() or Environment.from_string() built from
+      user-controlled input executes arbitrary Python. Use render_template()
+      with a fixed filename and pass data as template variables only.
+    metadata:
+      cwe: CWE-94
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - patterns:
+          - pattern: jinja2.Template($TMPL)
+          - metavariable-pattern:
+              metavariable: $TMPL
+              patterns:
+                - pattern-either:
+                    - pattern: request.args.get(...)
+                    - pattern: request.form.get(...)
+                    - pattern: request.GET.get(...)
+      - patterns:
+          - pattern: $ENV.from_string($TMPL)
+          - metavariable-pattern:
+              metavariable: $TMPL
+              patterns:
+                - pattern: request.args.get(...)
+      - pattern: render_template_string(request.args.get(...))
+      - pattern: render_template_string(request.form.get(...))
+
+  # ── Mako SSTI ────────────────────────────────────────────────────────────
+
+  - id: python-mako-ssti
+    languages: [python]
+    severity: ERROR
+    message: >
+      SSTI: Mako Template() built from user-controlled string executes arbitrary
+      Python. Always load templates from the filesystem, not from request input.
+    metadata:
+      cwe: CWE-94
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - patterns:
+          - pattern: mako.template.Template($TMPL)
+          - metavariable-pattern:
+              metavariable: $TMPL
+              patterns:
+                - pattern: request.args.get(...)

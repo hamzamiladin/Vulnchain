@@ -1,0 +1,270 @@
+rules:
+  # ── SQL Injection ─────────────────────────────────────────────────────────────
+
+  - id: ruby-sql-injection-string-interpolation
+    languages: [ruby]
+    severity: ERROR
+    message: >
+      SQL injection: query built with string interpolation or concatenation.
+      Use ActiveRecord parameterized queries: Model.where("col = ?", value)
+      or Model.where(col: value) instead.
+    metadata:
+      cwe: CWE-89
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: '$MODEL.where("... #{$VAR} ...")'
+      - pattern: '$MODEL.where("... " + $VAR)'
+      - pattern: '$MODEL.find_by_sql("... #{$VAR} ...")'
+      - pattern: '$DB.execute("... #{$VAR} ...")'
+      - pattern: '$DB.execute("... " + $VAR)'
+      - pattern: 'ActiveRecord::Base.connection.execute("... #{$VAR} ...")'
+
+  - id: ruby-activerecord-raw-sql
+    languages: [ruby]
+    severity: ERROR
+    message: >
+      SQL injection via ActiveRecord sanitize_sql_like bypass or raw Arel.sql.
+      Avoid passing user input to Arel.sql() — it disables all escaping.
+    metadata:
+      cwe: CWE-89
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: Arel.sql($USER_INPUT)
+      - pattern: $MODEL.order(Arel.sql($USER_INPUT))
+      - pattern: $MODEL.group(Arel.sql($USER_INPUT))
+      - pattern: $MODEL.select(Arel.sql($USER_INPUT))
+
+  # ── Command Injection ─────────────────────────────────────────────────────────
+
+  - id: ruby-command-injection-backtick
+    languages: [ruby]
+    severity: ERROR
+    message: >
+      Command injection: backtick execution with user-controlled data.
+      Use Open3.capture2e or Process.spawn with an array of arguments instead.
+    metadata:
+      cwe: CWE-78
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: "`... #{$PARAMS[...]} ...`"
+      - pattern: "`... #{$REQUEST.params[...]} ...`"
+      - pattern: 'system("... #{$PARAMS[...]} ...")'
+      - pattern: 'exec("... #{$PARAMS[...]} ...")'
+      - pattern: 'IO.popen("... #{$PARAMS[...]} ...")'
+      - pattern: 'Open3.capture2("... #{$PARAMS[...]} ...")'
+      - pattern: 'Open3.popen3("... #{$PARAMS[...]} ...")'
+      - pattern: "%x{... #{$PARAMS[...]} ...}"
+
+  - id: ruby-kernel-eval
+    languages: [ruby]
+    severity: ERROR
+    message: >
+      Remote code execution: eval() with user-controlled data allows arbitrary
+      code execution. Never pass user input to eval, class_eval, or instance_eval.
+    metadata:
+      cwe: CWE-94
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: eval($PARAMS[...])
+      - pattern: eval(params[...])
+      - pattern: binding.eval($PARAMS[...])
+      - pattern: $OBJ.class_eval($PARAMS[...])
+      - pattern: $OBJ.instance_eval($PARAMS[...])
+      - pattern: Kernel.eval($USER_INPUT)
+
+  # ── Mass Assignment ───────────────────────────────────────────────────────────
+
+  - id: ruby-mass-assignment-unpermitted
+    languages: [ruby]
+    severity: ERROR
+    message: >
+      Mass assignment: passing raw params hash to ActiveRecord create/update
+      without strong parameters filtering allows attackers to set arbitrary attributes
+      (e.g., admin: true, role: "admin"). Use params.require(...).permit(...).
+    metadata:
+      cwe: CWE-915
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern-either:
+      - pattern: $MODEL.new(params)
+      - pattern: $MODEL.create(params)
+      - pattern: $MODEL.update(params)
+      - pattern: $MODEL.update_attributes(params)
+      - pattern: $OBJ.update_attributes(params)
+      - pattern: $OBJ.assign_attributes(params)
+
+  # ── Path Traversal ────────────────────────────────────────────────────────────
+
+  - id: ruby-path-traversal-file-read
+    languages: [ruby]
+    severity: ERROR
+    message: >
+      Path traversal: user-controlled input used in file path without sanitization.
+      Use File.expand_path() and verify the path stays within the allowed directory.
+    metadata:
+      cwe: CWE-22
+      owasp: "A01:2021 – Broken Access Control"
+    pattern-either:
+      - pattern: File.read(params[...])
+      - pattern: File.open(params[...])
+      - pattern: File.read("#{params[...]}")
+      - pattern: IO.read(params[...])
+      - pattern: send_file(params[...])
+      - pattern: "render file: params[...]"
+
+  # ── SSRF ──────────────────────────────────────────────────────────────────────
+
+  - id: ruby-ssrf-net-http
+    languages: [ruby]
+    severity: ERROR
+    message: >
+      SSRF: Net::HTTP / Faraday / HTTParty making request to user-controlled URL.
+      Validate and allowlist the URL host before making outbound requests.
+    metadata:
+      cwe: CWE-918
+      owasp: "A10:2021 – Server-Side Request Forgery"
+    pattern-either:
+      - pattern: Net::HTTP.get(URI(params[...]))
+      - pattern: Net::HTTP.get(URI.parse(params[...]))
+      - pattern: Faraday.get(params[...])
+      - pattern: HTTParty.get(params[...])
+      - pattern: HTTParty.post(params[...])
+      - pattern: RestClient.get(params[...])
+      - pattern: open(params[...])
+      - pattern: URI.open(params[...])
+
+  # ── ERB / Template Injection (SSTI) ──────────────────────────────────────────
+
+  - id: ruby-erb-template-injection
+    languages: [ruby]
+    severity: ERROR
+    message: >
+      Server-Side Template Injection: ERB.new() with user-controlled template string
+      executes arbitrary Ruby code. Never pass user input as a template.
+    metadata:
+      cwe: CWE-94
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: ERB.new(params[...]).result
+      - pattern: ERB.new(params[...]).result(binding)
+      - pattern: ERB.new("#{params[...]}").result
+      - pattern: Erubi::Engine.new(params[...]).src
+
+  # ── Open Redirect ─────────────────────────────────────────────────────────────
+
+  - id: ruby-open-redirect
+    languages: [ruby]
+    severity: WARNING
+    message: >
+      Open redirect: user-controlled URL passed to redirect_to without validation
+      enables phishing attacks. Validate against an allowlist of trusted domains.
+    metadata:
+      cwe: CWE-601
+      owasp: "A01:2021 – Broken Access Control"
+    pattern-either:
+      - pattern: redirect_to params[...]
+      - pattern: redirect_to params[:url]
+      - pattern: redirect_to params[:redirect]
+      - pattern: redirect_to params[:return_to]
+      - pattern: redirect_to request.referer
+      - pattern: redirect_to request.env["HTTP_REFERER"]
+
+  # ── Insecure Deserialization ──────────────────────────────────────────────────
+
+  - id: ruby-marshal-load-user-input
+    languages: [ruby]
+    severity: ERROR
+    message: >
+      Insecure deserialization: Marshal.load() on user-controlled data enables
+      arbitrary code execution via Ruby object gadget chains.
+      Use JSON.parse() instead of Marshal for untrusted data.
+    metadata:
+      cwe: CWE-502
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern-either:
+      - pattern: Marshal.load(params[...])
+      - pattern: Marshal.load(request.body.read)
+      - pattern: Marshal.restore(params[...])
+      - pattern: YAML.load(params[...])
+      - pattern: YAML.load(request.body.read)
+
+  # ── XSS ───────────────────────────────────────────────────────────────────────
+
+  - id: ruby-rails-html-safe-xss
+    languages: [ruby]
+    severity: ERROR
+    message: >
+      XSS: calling html_safe or raw() on user-controlled data bypasses
+      Rails automatic HTML escaping. Use sanitize() with a strict allowlist
+      or ensure the value is fully trusted before marking it safe.
+    metadata:
+      cwe: CWE-79
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: params[...].html_safe
+      - pattern: raw(params[...])
+      - pattern: '"#{params[...]}".html_safe'
+      - pattern: content_tag($TAG, params[...].html_safe)
+
+  # ── Hardcoded Credentials ─────────────────────────────────────────────────────
+
+  - id: ruby-hardcoded-secret
+    languages: [ruby]
+    severity: WARNING
+    message: >
+      Hardcoded credential detected. Store secrets in environment variables
+      (ENV['SECRET']) or a secrets manager, never in source code.
+    metadata:
+      cwe: CWE-798
+      owasp: "A07:2021 – Identification and Authentication Failures"
+    patterns:
+      - pattern: $VAR = "..."
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: "(?i).*(password|passwd|secret|apikey|api_key|token|credential|private_?key).*"
+
+  # ── Weak Cryptography ─────────────────────────────────────────────────────────
+
+  - id: ruby-weak-hash-md5-sha1
+    languages: [ruby]
+    severity: WARNING
+    message: >
+      Weak hash: MD5 and SHA1 are cryptographically broken.
+      Use Digest::SHA256 for general hashing, BCrypt for passwords.
+    metadata:
+      cwe: CWE-328
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern-either:
+      - pattern: Digest::MD5.hexdigest($INPUT)
+      - pattern: Digest::MD5.digest($INPUT)
+      - pattern: Digest::SHA1.hexdigest($INPUT)
+      - pattern: OpenSSL::Digest::MD5.new
+
+  - id: ruby-insecure-random
+    languages: [ruby]
+    severity: WARNING
+    message: >
+      rand() and Random are not cryptographically secure. Use SecureRandom.hex
+      or SecureRandom.urlsafe_base64 for tokens, keys, and session IDs.
+    metadata:
+      cwe: CWE-338
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern-either:
+      - pattern: rand(...)
+      - pattern: Random.new.rand(...)
+      - pattern: Random.rand(...)
+
+  # ── Regex Denial of Service (ReDoS) ──────────────────────────────────────────
+
+  - id: ruby-regexp-user-input
+    languages: [ruby]
+    severity: WARNING
+    message: >
+      ReDoS: compiling user-controlled input as a Regexp can cause catastrophic
+      backtracking. Validate or sanitize the pattern, or use Regexp.escape().
+    metadata:
+      cwe: CWE-1333
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: Regexp.new(params[...])
+      - pattern: Regexp.compile(params[...])
+      - pattern: params[...].match(Regexp.new($VAR))

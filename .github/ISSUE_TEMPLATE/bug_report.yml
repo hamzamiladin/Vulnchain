@@ -1,0 +1,70 @@
+name: Bug Report
+description: Report a reproducible problem with RedTeam Agent
+labels: ["bug", "needs-triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Fill out the sections below to help us reproduce and fix it quickly.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: "When I scan repo X, the agent crashes with..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands or API calls to reproduce the issue.
+      placeholder: |
+        1. `docker compose up -d`
+        2. `curl -X POST http://localhost:8080/api/scans -d '{"repo_url": "..."}'`
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste agent logs here (`docker compose logs agent`). Redact any API keys.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit SHA
+      placeholder: "v0.2.1 or abc1234"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows (WSL2)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Docker version, CPU arch, size of scanned repo, etc.

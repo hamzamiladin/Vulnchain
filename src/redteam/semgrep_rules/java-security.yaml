@@ -1,0 +1,329 @@
+rules:
+  # ── SQL Injection ────────────────────────────────────────────────────────────
+
+  - id: java-sql-injection-concat
+    languages: [java]
+    severity: ERROR
+    message: >
+      SQL injection: query built with string concatenation.
+      Use PreparedStatement with bind parameters instead.
+    metadata:
+      cwe: CWE-89
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: $STMT.execute("..." + $VAR)
+      - pattern: $STMT.executeQuery("..." + $VAR)
+      - pattern: $STMT.executeUpdate("..." + $VAR)
+      - pattern: new SqlCommand("..." + $VAR, ...)
+      - pattern: $CONN.prepareStatement("..." + $VAR)
+      - pattern: String.format("...%s...", $VAR)
+
+  - id: java-spring-query-spel-injection
+    languages: [java]
+    severity: ERROR
+    message: >
+      Spring Data @Query with SpEL expression injection risk.
+      Avoid #{#param} in native queries with user-controlled data.
+    metadata:
+      cwe: CWE-89
+      owasp: "A03:2021 – Injection"
+    patterns:
+      - pattern: |
+          @Query(value = "..." + $VAR, ...)
+          $TYPE $METHOD(...);
+
+  # ── Command Injection ────────────────────────────────────────────────────────
+
+  - id: java-command-injection-runtime
+    languages: [java]
+    severity: ERROR
+    message: >
+      Command injection: user-controlled data passed to Runtime.exec() or ProcessBuilder.
+      Pass a fixed command array with arguments escaped/validated.
+    metadata:
+      cwe: CWE-78
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: Runtime.getRuntime().exec($CMD)
+      - pattern: new ProcessBuilder($CMD, ...)
+      - pattern: new ProcessBuilder($LIST)
+
+  # ── Path Traversal ───────────────────────────────────────────────────────────
+
+  - id: java-path-traversal-file
+    languages: [java]
+    severity: ERROR
+    message: >
+      Path traversal: user-controlled input used as file path without canonicalization.
+      Use Paths.get(basePath).resolve(userInput).normalize() and verify it starts
+      with the allowed base directory.
+    metadata:
+      cwe: CWE-22
+      owasp: "A01:2021 – Broken Access Control"
+    pattern-either:
+      - pattern: new File($REQ.getParameter(...))
+      - pattern: new File($REQ.getHeader(...))
+      - pattern: Paths.get($REQ.getParameter(...))
+      - pattern: Files.readAllBytes(Paths.get($REQ.getParameter(...)))
+
+  # ── SSRF ─────────────────────────────────────────────────────────────────────
+
+  - id: java-ssrf-resttemplate
+    languages: [java]
+    severity: ERROR
+    message: >
+      SSRF: RestTemplate making HTTP request to user-controlled URL.
+      Validate and allowlist the URL before making outbound requests.
+    metadata:
+      cwe: CWE-918
+      owasp: "A10:2021 – Server-Side Request Forgery"
+    pattern-either:
+      - pattern: $RT.getForObject($REQ.getParameter(...), ...)
+      - pattern: $RT.getForEntity($REQ.getParameter(...), ...)
+      - pattern: $RT.postForObject($REQ.getParameter(...), ...)
+      - pattern: $RT.exchange($REQ.getParameter(...), ...)
+
+  - id: java-ssrf-url-open
+    languages: [java]
+    severity: ERROR
+    message: >
+      SSRF: new URL() opened with user-controlled input.
+      Validate the URL scheme and host against an allowlist.
+    metadata:
+      cwe: CWE-918
+      owasp: "A10:2021 – Server-Side Request Forgery"
+    pattern-either:
+      - pattern: new URL($REQ.getParameter(...)).openConnection()
+      - pattern: new URL($REQ.getParameter(...)).openStream()
+
+  # ── XXE Injection ────────────────────────────────────────────────────────────
+
+  - id: java-xxe-documentbuilder
+    languages: [java]
+    severity: ERROR
+    message: >
+      XXE vulnerability: DocumentBuilderFactory.newDocumentBuilder() called without
+      disabling DTD processing first.
+      Call factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+      before calling factory.newDocumentBuilder().
+    metadata:
+      cwe: CWE-611
+      owasp: "A05:2021 – Security Misconfiguration"
+    pattern: $FACTORY.newDocumentBuilder()
+
+  - id: java-xxe-saxparser
+    languages: [java]
+    severity: ERROR
+    message: >
+      XXE vulnerability: SAXParserFactory.newSAXParser() called without disabling
+      external entity processing first.
+      Set FEATURE_SECURE_PROCESSING or disable external DTD loading via setFeature().
+    metadata:
+      cwe: CWE-611
+      owasp: "A05:2021 – Security Misconfiguration"
+    pattern: $FACTORY.newSAXParser()
+
+  # ── Insecure Deserialization ─────────────────────────────────────────────────
+
+  - id: java-deserialization-objectinputstream
+    languages: [java]
+    severity: ERROR
+    message: >
+      Insecure deserialization: ObjectInputStream.readObject() on untrusted data
+      can execute arbitrary code via gadget chains.
+      Use a deserialization filter (Java 9+ ObjectInputFilter) or avoid Java serialization.
+    metadata:
+      cwe: CWE-502
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern: new ObjectInputStream($STREAM).readObject()
+
+  - id: java-deserialization-xmldecoder
+    languages: [java]
+    severity: ERROR
+    message: >
+      Insecure deserialization: XMLDecoder can execute arbitrary Java code.
+      Never decode untrusted XML with XMLDecoder.
+    metadata:
+      cwe: CWE-502
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+    pattern: new XMLDecoder($STREAM).readObject()
+
+  # ── Log4Shell (CVE-2021-44228) ───────────────────────────────────────────────
+
+  - id: java-log4shell-user-input-in-log
+    languages: [java]
+    severity: ERROR
+    message: >
+      Log4Shell risk (CVE-2021-44228): user-controlled data logged directly via
+      Log4j without sanitization. If log4j < 2.15 is in use and the logged string
+      contains ${jndi:...}, it triggers remote code execution.
+      Sanitize input or upgrade to log4j >= 2.17.1 with log4j2.formatMsgNoLookups=true.
+    metadata:
+      cwe: CWE-917
+      owasp: "A03:2021 – Injection"
+      cve: CVE-2021-44228
+    pattern-either:
+      - pattern: $LOGGER.info($REQ.getParameter(...))
+      - pattern: $LOGGER.warn($REQ.getParameter(...))
+      - pattern: $LOGGER.error($REQ.getParameter(...))
+      - pattern: $LOGGER.debug($REQ.getParameter(...))
+      - pattern: $LOGGER.info("..." + $REQ.getParameter(...))
+      - pattern: $LOGGER.error("..." + $REQ.getParameter(...))
+
+  # ── Open Redirect ────────────────────────────────────────────────────────────
+
+  - id: java-open-redirect
+    languages: [java]
+    severity: WARNING
+    message: >
+      Open redirect: user-controlled URL in sendRedirect enables phishing attacks.
+      Validate the redirect target against an allowlist of trusted domains.
+    metadata:
+      cwe: CWE-601
+      owasp: "A01:2021 – Broken Access Control"
+    pattern-either:
+      - pattern: $RESP.sendRedirect($REQ.getParameter(...))
+      - pattern: $RESP.sendRedirect($REQ.getHeader(...))
+
+  # ── LDAP Injection ───────────────────────────────────────────────────────────
+
+  - id: java-ldap-injection
+    languages: [java]
+    severity: ERROR
+    message: >
+      LDAP injection: user-controlled data in LDAP filter without escaping.
+      Use LdapEncoder.filterEncode() or JNDI-safe escaping before inserting into filters.
+    metadata:
+      cwe: CWE-90
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: $CTX.search($DN, "..." + $REQ.getParameter(...), ...)
+      - pattern: $CTX.search($DN, "..." + $VAR, ...)
+
+  # ── Weak Cryptography ────────────────────────────────────────────────────────
+
+  - id: java-weak-cipher-des
+    languages: [java]
+    severity: WARNING
+    message: >
+      Weak cipher: DES/3DES are cryptographically broken. Use AES-256-GCM.
+    metadata:
+      cwe: CWE-327
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern-either:
+      - pattern: Cipher.getInstance("DES/...")
+      - pattern: Cipher.getInstance("DESede/...")
+      - pattern: Cipher.getInstance("RC2/...")
+      - pattern: Cipher.getInstance("RC4/...")
+      - pattern: Cipher.getInstance("Blowfish/...")
+
+  - id: java-ecb-mode-cipher
+    languages: [java]
+    severity: WARNING
+    message: >
+      ECB cipher mode is deterministic — identical plaintext produces identical ciphertext.
+      Use AES/GCM/NoPadding or AES/CBC/PKCS5Padding with a random IV.
+    metadata:
+      cwe: CWE-327
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern: Cipher.getInstance(".../ECB/...")
+
+  - id: java-md5-password-hash
+    languages: [java]
+    severity: ERROR
+    message: >
+      MD5 used for password hashing — use BCrypt, Argon2, or PBKDF2 instead.
+    metadata:
+      cwe: CWE-328
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern: MessageDigest.getInstance("MD5")
+
+  - id: java-sha1-password-hash
+    languages: [java]
+    severity: WARNING
+    message: >
+      SHA-1 is cryptographically broken. Use SHA-256+ for non-password hashing,
+      BCrypt/Argon2 for passwords.
+    metadata:
+      cwe: CWE-328
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern: MessageDigest.getInstance("SHA-1")
+
+  # ── Hardcoded Credentials ────────────────────────────────────────────────────
+
+  - id: java-hardcoded-secret
+    languages: [java]
+    severity: WARNING
+    message: >
+      Hardcoded credential detected. Use environment variables or a secrets manager.
+    metadata:
+      cwe: CWE-798
+      owasp: "A07:2021 – Identification and Authentication Failures"
+    patterns:
+      - pattern: String $VAR = "...";
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: "(?i).*(password|passwd|secret|apikey|api_key|token|credential|private_?key).*"
+
+  # ── Insecure Random ──────────────────────────────────────────────────────────
+
+  - id: java-insecure-random
+    languages: [java]
+    severity: WARNING
+    message: >
+      java.util.Random is not cryptographically secure. Use java.security.SecureRandom
+      for security-sensitive values like tokens, salts, and session IDs.
+    metadata:
+      cwe: CWE-338
+      owasp: "A02:2021 – Cryptographic Failures"
+    pattern: new Random()
+
+  # ── Server-Side Template Injection (SSTI) ────────────────────────────────────
+
+  - id: java-thymeleaf-ssti
+    languages: [java]
+    severity: ERROR
+    message: >
+      SSTI: Thymeleaf template string built from user-controlled input enables
+      arbitrary code execution. The Spring View name must never contain user input.
+      Return a fixed template name and pass data via the Model instead.
+      CVE-2023-38286 / modzero.com 2025: confirmed RCE in Spring Boot 3.3.4.
+    metadata:
+      cwe: CWE-94
+      owasp: "A03:2021 – Injection"
+      references:
+        - "https://modzero.com/en/blog/spring-thymeleaf-ssti-rce/"
+    pattern-either:
+      - pattern: return $REQ.getParameter(...);
+      - pattern: |
+          String $VIEW = $REQ.getParameter(...);
+          return $VIEW;
+      - pattern: $ENGINE.process($REQ.getParameter(...), ...)
+
+  - id: java-freemarker-ssti
+    languages: [java]
+    severity: ERROR
+    message: >
+      SSTI: FreeMarker template built from user-controlled string.
+      Use cfg.getTemplate("fixed-name.ftl") with a Model for data, never
+      build template strings from request parameters.
+    metadata:
+      cwe: CWE-94
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: new Template($REQ.getParameter(...), ...)
+      - pattern: new Template($NAME, new StringReader($REQ.getParameter(...)), ...)
+      - pattern: $CFG.getTemplate($REQ.getParameter(...))
+
+  - id: java-velocity-ssti
+    languages: [java]
+    severity: ERROR
+    message: >
+      SSTI: Velocity template evaluated from user-controlled input.
+      Always load templates from classpath/disk, never from request parameters.
+    metadata:
+      cwe: CWE-94
+      owasp: "A03:2021 – Injection"
+    pattern-either:
+      - pattern: Velocity.evaluate($CTX, $WRITER, $LOG, $REQ.getParameter(...))
+      - pattern: $ENGINE.evaluate($CTX, $WRITER, $LOG, $REQ.getParameter(...))

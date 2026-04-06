@@ -1,0 +1,49 @@
+# Environment / secrets — NEVER commit these
+.env
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+.eggs/
+dist/
+build/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Rust
+target/
+
+# Scan artefacts
+/tmp/redteam-scans/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+postgres_data/
+
+# Claude Code / claude-flow artefacts
+.claude/
+.claude-flow*/
+.swarm/
+.mcp.json

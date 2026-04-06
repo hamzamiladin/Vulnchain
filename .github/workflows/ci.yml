@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Python: lint, typecheck, test ─────────────────────────────────────────
+  python:
+    name: Python (lint · types · tests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check src/ tests/
+
+      - name: Type check (mypy)
+        run: mypy src/
+
+      - name: Run tests
+        run: pytest tests/ -v --cov=src/redteam --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+
+  # ── Semgrep rules validation ──────────────────────────────────────────────
+  semgrep-validate:
+    name: Validate Semgrep rules
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Validate all rules
+        run: semgrep --config src/redteam/semgrep_rules/ --validate
+
+  # ── Secrets scanning ──────────────────────────────────────────────────────
+  secrets:
+    name: Detect committed secrets
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Rust webhook: build + clippy ──────────────────────────────────────────
+  rust:
+    name: Rust (build · clippy)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: redteam-webhook
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            redteam-webhook/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('redteam-webhook/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+  # ── Docker: build all images ──────────────────────────────────────────────
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: [python, rust]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build agent image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.agent
+          push: false
+          tags: redteam-agent:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build webhook image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./redteam-webhook
+          push: false
+          tags: redteam-webhook:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

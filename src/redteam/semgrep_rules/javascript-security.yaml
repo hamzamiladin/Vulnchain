@@ -1,0 +1,185 @@
+rules:
+  - id: js-eval-user-input
+    pattern-either:
+      - pattern: eval($REQ.body.$X)
+      - pattern: eval($REQ.query.$X)
+      - pattern: eval($REQ.params.$X)
+      - pattern: new Function($REQ.body.$X)
+      - pattern: new Function($REQ.query.$X)
+    message: >
+      Code injection: eval() or new Function() with user-controlled input.
+      This allows arbitrary JavaScript execution.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-95
+      owasp: A03:2021 – Injection
+
+  - id: js-sql-injection-template
+    pattern-either:
+      - pattern: $DB.query(`... ${$REQ.body.$X} ...`)
+      - pattern: $DB.query(`... ${$REQ.query.$X} ...`)
+      - pattern: $DB.query(`... ${$REQ.params.$X} ...`)
+      - pattern: knex.raw(`... ${...} ...`)
+    message: >
+      SQL injection via template literal string interpolation.
+      Use parameterized queries.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+      owasp: A03:2021 – Injection
+
+  - id: js-child-process-exec
+    pattern-either:
+      - pattern: exec($REQ.body.$X, ...)
+      - pattern: exec($REQ.query.$X, ...)
+      - pattern: execSync($REQ.body.$X, ...)
+      - pattern: spawn($REQ.body.$X, ...)
+    message: >
+      Command injection: user-controlled input passed to child_process execution.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-78
+      owasp: A03:2021 – Injection
+
+  - id: js-hardcoded-secret
+    patterns:
+      - pattern: const $VAR = "..."
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: "(?i).*(password|secret|token|api_?key|access_?key|private_?key).*"
+    message: >
+      Hardcoded credential. Use environment variables instead.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      cwe: CWE-798
+      owasp: A07:2021 – Identification and Authentication Failures
+
+  - id: js-jwt-verify-no-algorithms
+    pattern: jwt.verify($TOKEN, $SECRET)
+    message: >
+      jwt.verify() called without explicit algorithms option — vulnerable to the
+      'none' algorithm attack. Pass { algorithms: ['HS256'] } as the third argument.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-347
+      owasp: A02:2021 – Cryptographic Failures
+
+  - id: js-prototype-pollution
+    pattern-either:
+      - pattern: $OBJ["__proto__"] = $VAL
+      - pattern: $OBJ.__proto__ = $VAL
+      - pattern: $OBJ["constructor"]["prototype"] = $VAL
+      - pattern: Object.assign($OBJ, $REQ.body)
+      - pattern: Object.assign($OBJ, $REQ.query)
+    message: >
+      Potential prototype pollution. Merging user-controlled objects or assigning to
+      __proto__/constructor.prototype can corrupt Object.prototype.
+      Use Object.create(null) for dictionaries; avoid Object.assign with user input.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      cwe: CWE-1321
+
+  - id: js-prototype-pollution-lodash
+    pattern-either:
+      - pattern: _.set($OBJ, $REQ.body.$KEY, ...)
+      - pattern: _.set($OBJ, $REQ.query.$KEY, ...)
+      - pattern: _.merge($OBJ, $REQ.body)
+      - pattern: _.merge($OBJ, $REQ.query)
+      - pattern: _.mergeWith($OBJ, $REQ.body, ...)
+      - pattern: _.setWith($OBJ, $REQ.body.$KEY, ...)
+    message: >
+      Prototype pollution via lodash: user-controlled key passed to _.set/_.merge
+      can corrupt Object.prototype with __proto__ or constructor.prototype paths.
+      Validate and sanitize keys before using _.set/_.merge with user input.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-1321
+      owasp: "A08:2021 – Software and Data Integrity Failures"
+
+  - id: js-postmessage-no-origin-check
+    pattern: window.addEventListener("message", $HANDLER, ...)
+    message: >
+      postMessage handler detected: ensure event.origin is verified against a
+      trusted allowlist before processing the message data. Any window can send
+      a postMessage — missing origin validation enables cross-origin data injection.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      cwe: CWE-346
+      owasp: "A01:2021 – Broken Access Control"
+
+  - id: js-regex-from-user-input
+    pattern-either:
+      - pattern: new RegExp($REQ.body.$VAR)
+      - pattern: new RegExp($REQ.query.$VAR)
+      - pattern: new RegExp($REQ.params.$VAR)
+    message: >
+      ReDoS risk: RegExp constructed from user input can trigger catastrophic
+      backtracking. Validate or sanitize regex patterns before using them,
+      or use a safe regex library with timeout support.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      cwe: CWE-1333
+      owasp: "A03:2021 – Injection"
+
+  - id: js-nosql-injection-mongodb
+    pattern-either:
+      - pattern: $COLLECTION.find($REQ.body)
+      - pattern: $COLLECTION.find($REQ.query)
+      - pattern: $COLLECTION.findOne($REQ.body)
+      - pattern: $COLLECTION.findOne($REQ.query)
+      - pattern: $COLLECTION.deleteMany($REQ.body)
+      - pattern: $COLLECTION.updateMany($REQ.body, ...)
+      - pattern: $COLLECTION.where($REQ.body)
+      - pattern: $COLLECTION.where($REQ.query)
+    message: >
+      NoSQL injection: passing raw request body/query to MongoDB operations
+      allows $where, $gt, $ne operator injection for auth bypass.
+      Validate and sanitize query objects before database operations.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-943
+      owasp: "A03:2021 – Injection"
+
+  - id: js-path-traversal
+    pattern-either:
+      - pattern: path.join($REQ.body.$VAR)
+      - pattern: path.join($REQ.query.$VAR)
+      - pattern: path.join($REQ.params.$VAR)
+      - pattern: fs.readFile($REQ.body.$VAR, ...)
+      - pattern: fs.readFile($REQ.query.$VAR, ...)
+      - pattern: fs.readFileSync($REQ.body.$VAR, ...)
+      - pattern: fs.readFileSync($REQ.query.$VAR, ...)
+    message: >
+      Path traversal: user-controlled path in file system operation.
+      Normalize with path.resolve() and verify the result starts with the
+      expected base directory.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-22
+      owasp: "A01:2021 – Broken Access Control"
+
+  - id: js-innerHTML-direct-assignment
+    pattern-either:
+      - pattern: $EL.innerHTML = $REQ.body.$VAR
+      - pattern: $EL.innerHTML = $REQ.query.$VAR
+      - pattern: document.write($REQ.body.$VAR)
+      - pattern: document.write($REQ.query.$VAR)
+    message: >
+      XSS: user-controlled data assigned directly to innerHTML or document.write.
+      Use textContent or DOMPurify.sanitize() before assigning to innerHTML.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-79
+      owasp: "A03:2021 – Injection"

@@ -1,0 +1,418 @@
+rules:
+  # ── Taint-mode: SQL injection via user input ──────────────────────────────
+  - id: php-sql-injection-taint
+    mode: taint
+    pattern-sources:
+      - pattern: $_GET[...]
+      - pattern: $_POST[...]
+      - pattern: $_REQUEST[...]
+      - pattern: $_COOKIE[...]
+      - pattern: $_SERVER['HTTP_HOST']
+      - pattern: $_SERVER['REQUEST_URI']
+      - pattern: getallheaders()[...]
+    pattern-sanitizers:
+      - pattern: mysqli_real_escape_string(...)
+      - pattern: mysql_real_escape_string(...)
+      - pattern: pg_escape_string(...)
+      - pattern: intval(...)
+      - pattern: floatval(...)
+      - pattern: filter_var(..., FILTER_SANITIZE_NUMBER_INT)
+    pattern-sinks:
+      - pattern: mysql_query(...)
+      - pattern: mysqli_query(...)
+      - pattern: pg_query(...)
+      - pattern: pg_query_params(...)
+      - pattern: $DB->query(...)
+      - pattern: $CONN->query(...)
+      - pattern: $PDO->query(...)
+      - pattern: $STMT->execute(...)
+    message: >
+      SQL injection: user-controlled data flows into SQL query without sanitization.
+      Use prepared statements with PDO or MySQLi bind_param() instead.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+      owasp: A03:2021 – Injection
+
+  # ── Taint-mode: XSS via user input ──────────────────────────────────────
+  - id: php-xss-taint
+    mode: taint
+    pattern-sources:
+      - pattern: $_GET[...]
+      - pattern: $_POST[...]
+      - pattern: $_REQUEST[...]
+      - pattern: $_COOKIE[...]
+    pattern-sanitizers:
+      - pattern: htmlspecialchars(...)
+      - pattern: htmlentities(...)
+      - pattern: strip_tags(...)
+      - pattern: filter_var(..., FILTER_SANITIZE_SPECIAL_CHARS)
+    pattern-sinks:
+      - pattern: printf(...)
+      - pattern: fprintf(...)
+      - pattern: vprintf(...)
+    message: >
+      XSS: user-controlled data flows into HTML output without sanitization.
+      Use htmlspecialchars($var, ENT_QUOTES, 'UTF-8') before all output.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-79
+      owasp: A03:2021 – Injection
+
+  # ── Taint-mode: command injection ────────────────────────────────────────
+  - id: php-command-injection-taint
+    mode: taint
+    pattern-sources:
+      - pattern: $_GET[...]
+      - pattern: $_POST[...]
+      - pattern: $_REQUEST[...]
+      - pattern: $_COOKIE[...]
+    pattern-sanitizers:
+      - pattern: escapeshellarg(...)
+      - pattern: escapeshellcmd(...)
+    pattern-sinks:
+      - pattern: exec(...)
+      - pattern: system(...)
+      - pattern: shell_exec(...)
+      - pattern: passthru(...)
+      - pattern: popen(...)
+      - pattern: proc_open(...)
+    message: >
+      Command injection: user-controlled input flows into a shell execution function.
+      Use escapeshellarg() on every user-supplied argument.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-78
+      owasp: A03:2021 – Injection
+
+  # ── Direct-pattern fallbacks (catch obvious one-liners) ──────────────────
+  - id: php-xss-print-direct
+    pattern-either:
+      - pattern: print($_GET[$KEY])
+      - pattern: print($_POST[$KEY])
+      - pattern: print($_REQUEST[$KEY])
+      - pattern: print($_COOKIE[$KEY])
+      - pattern: printf($_GET[$KEY])
+      - pattern: printf($_POST[$KEY])
+      - pattern: die($_GET[$KEY])
+      - pattern: die($_POST[$KEY])
+    message: >
+      XSS: unsanitized user input output directly without htmlspecialchars().
+      Use htmlspecialchars($var, ENT_QUOTES, 'UTF-8') before all output.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-79
+      owasp: A03:2021 – Injection
+
+  - id: php-command-injection-direct
+    pattern-either:
+      - pattern: exec($_GET[...], ...)
+      - pattern: exec($_POST[...], ...)
+      - pattern: exec($_REQUEST[...], ...)
+      - pattern: system($_GET[...], ...)
+      - pattern: system($_POST[...], ...)
+      - pattern: system($_REQUEST[...], ...)
+      - pattern: shell_exec($_GET[...])
+      - pattern: shell_exec($_POST[...])
+      - pattern: passthru($_GET[...], ...)
+      - pattern: passthru($_POST[...], ...)
+    message: >
+      Command injection: unsanitized user input passed directly to shell function.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-78
+      owasp: A03:2021 – Injection
+
+  # ── PHP eval/assert code injection ────────────────────────────────────────
+  - id: php-eval-injection
+    pattern-either:
+      - pattern: eval($_GET[...])
+      - pattern: eval($_POST[...])
+      - pattern: eval($_REQUEST[...])
+      - pattern: eval($_COOKIE[...])
+      - pattern: assert($_GET[...])
+      - pattern: assert($_POST[...])
+      - pattern: assert($_REQUEST[...])
+    message: >
+      Remote code execution: user input passed directly to eval() or assert().
+      This is a critical RCE vulnerability. Never pass user input to eval().
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-94
+      owasp: A03:2021 – Injection
+
+  # ── File inclusion ─────────────────────────────────────────────────────────
+  - id: php-file-inclusion
+    pattern-either:
+      - pattern: include($_GET[...])
+      - pattern: include($_POST[...])
+      - pattern: include($_REQUEST[...])
+      - pattern: include_once($_GET[...])
+      - pattern: include_once($_POST[...])
+      - pattern: require($_GET[...])
+      - pattern: require($_POST[...])
+      - pattern: require_once($_GET[...])
+      - pattern: require_once($_POST[...])
+    message: >
+      Remote/Local File Inclusion: unsanitized user input used in file include.
+      Validate and whitelist allowed paths. Never include user-supplied paths.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-98
+      owasp: A03:2021 – Injection
+
+  # ── Unrestricted file upload ───────────────────────────────────────────────
+  - id: php-unrestricted-file-upload
+    pattern: move_uploaded_file(...)
+    message: >
+      File upload detected (CWE-434). Verify that: (1) MIME type is validated
+      server-side, (2) file extension is whitelisted, (3) file content is inspected,
+      (4) upload destination is outside web root, (5) filename is randomized.
+      Missing validation enables RCE via PHP webshell upload.
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: CWE-434
+      owasp: A04:2021 – Insecure Design
+
+  # ── XXE via libxml flags ───────────────────────────────────────────────────
+  - id: php-xxe-libxml-noent
+    pattern-either:
+      - pattern: simplexml_load_string($INPUT, ..., LIBXML_NOENT, ...)
+      - pattern: simplexml_load_file($INPUT, ..., LIBXML_NOENT, ...)
+      - pattern: simplexml_load_string($INPUT, ..., LIBXML_DTDLOAD, ...)
+      - pattern: simplexml_load_file($INPUT, ..., LIBXML_DTDLOAD, ...)
+    message: >
+      XXE vulnerability: LIBXML_NOENT / LIBXML_DTDLOAD enables external entity
+      expansion. An attacker can read /etc/passwd or perform SSRF.
+      Call libxml_disable_entity_loader(true) and avoid these flags.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-611
+      owasp: A05:2021 – Security Misconfiguration
+
+  - id: php-xxe-simplexml-user-input
+    mode: taint
+    pattern-sources:
+      - pattern: file_get_contents("php://input")
+      - pattern: $HTTP_RAW_POST_DATA
+      - pattern: $_POST[...]
+      - pattern: $_GET[...]
+    pattern-sinks:
+      - pattern: simplexml_load_string(...)
+      - pattern: simplexml_load_file(...)
+      - patterns:
+          - pattern: $DOM->loadXML(...)
+          - pattern-inside: |
+              $DOM = new DOMDocument(...);
+              ...
+    message: >
+      XXE: user-supplied XML parsed without disabling external entities.
+      Call libxml_disable_entity_loader(true) before parsing untrusted XML.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-611
+      owasp: A05:2021 – Security Misconfiguration
+
+  # ── Session fixation ───────────────────────────────────────────────────────
+  - id: php-session-fixation
+    pattern-either:
+      - pattern: session_id($_GET[...])
+      - pattern: session_id($_POST[...])
+      - pattern: session_id($_REQUEST[...])
+      - pattern: session_id($_COOKIE[...])
+    message: >
+      Session fixation (CWE-384): allowing attackers to set the session ID
+      enables session hijacking. Never accept session IDs from user input.
+      Call session_regenerate_id(true) after login.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-384
+      owasp: A07:2021 – Identification and Authentication Failures
+
+  # ── Insecure deserialization ───────────────────────────────────────────────
+  - id: php-unserialize-user-input
+    pattern-either:
+      - pattern: unserialize($_GET[...])
+      - pattern: unserialize($_POST[...])
+      - pattern: unserialize($_REQUEST[...])
+      - pattern: unserialize($_COOKIE[...])
+    message: >
+      Insecure deserialization (CWE-502): unserializing user-controlled data
+      can trigger PHP object injection and lead to RCE.
+      Use JSON (json_decode) instead of unserialize for user data.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-502
+      owasp: A08:2021 – Software and Data Integrity Failures
+
+  # ── Dangerous extract() ────────────────────────────────────────────────────
+  - id: php-extract-superglobal
+    pattern-either:
+      - pattern: extract($_GET)
+      - pattern: extract($_POST)
+      - pattern: extract($_REQUEST)
+    message: >
+      extract() on superglobals can overwrite arbitrary variables including
+      $auth, $admin, $is_logged_in. Explicitly map only expected keys.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-621
+
+  # ── Weak hash functions ────────────────────────────────────────────────────
+  - id: php-weak-hash
+    pattern-either:
+      - pattern: md5($X)
+      - pattern: sha1($X)
+    message: >
+      Weak hash function (CWE-328). MD5 and SHA1 are cryptographically broken.
+      Use password_hash($password, PASSWORD_BCRYPT) for passwords,
+      or hash('sha256', ...) for non-password hashing.
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: CWE-328
+      owasp: A02:2021 – Cryptographic Failures
+
+  # ── phpinfo() exposure ─────────────────────────────────────────────────────
+  - id: php-phpinfo-exposure
+    pattern: phpinfo()
+    message: >
+      phpinfo() exposes server configuration, PHP version, installed extensions,
+      environment variables and path information. Remove from production code.
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: CWE-200
+      owasp: A05:2021 – Security Misconfiguration
+
+  # ── Debug info disclosure ──────────────────────────────────────────────────
+  - id: php-debug-output-sensitive
+    pattern-either:
+      - pattern: var_dump($_SESSION)
+      - pattern: var_dump($_SERVER)
+      - pattern: var_dump($_ENV)
+      - pattern: print_r($_SESSION, ...)
+      - pattern: print_r($_SERVER, ...)
+      - pattern: var_export($_SESSION, ...)
+    message: >
+      Information disclosure: dumping session/server/env data to output
+      can expose credentials, session tokens, and server paths.
+      Remove debugging output in production.
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: CWE-200
+      owasp: A05:2021 – Security Misconfiguration
+
+  # ── Hardcoded credentials ──────────────────────────────────────────────────
+  - id: php-hardcoded-password
+    patterns:
+      - pattern: $PASSWORD = "..."
+      - metavariable-regex:
+          metavariable: $PASSWORD
+          regex: "(?i).*(password|passwd|secret|token|key|credential|api_key|apikey).*"
+    message: >
+      Hardcoded credential detected (CWE-798). Store secrets in environment
+      variables or a secrets manager, never in source code.
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: CWE-798
+      owasp: A07:2021 – Identification and Authentication Failures
+
+  # ── Open redirect ─────────────────────────────────────────────────────────
+  - id: php-open-redirect
+    pattern-either:
+      - pattern: 'header("Location: " . $_GET[...])'
+      - pattern: 'header("Location: " . $_POST[...])'
+      - pattern: 'header("Location: " . $_REQUEST[...])'
+    message: >
+      Open redirect (CWE-601): user-controlled URL in Location header enables
+      phishing. Validate against a whitelist of allowed redirect destinations.
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: CWE-601
+      owasp: A01:2021 – Broken Access Control
+
+  # ── LDAP Injection ─────────────────────────────────────────────────────────
+  - id: php-ldap-injection
+    pattern-either:
+      - pattern: ldap_search($CONN, $BASE, "..." . $_GET[...], ...)
+      - pattern: ldap_search($CONN, $BASE, "..." . $_POST[...], ...)
+      - pattern: ldap_search($CONN, $BASE, "..." . $_REQUEST[...], ...)
+    message: >
+      LDAP injection (CWE-90): user-controlled data in LDAP filter without escaping.
+      Use ldap_escape() with LDAP_ESCAPE_FILTER on all user inputs before inserting
+      into LDAP filter strings.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-90
+      owasp: "A03:2021 – Injection"
+
+  # ── PHP Type Juggling (auth bypass via loose comparison) ──────────────────
+  - id: php-type-juggling-auth
+    pattern-either:
+      - pattern: if ($_GET[$KEY] == $SECRET)
+      - pattern: if ($_POST[$KEY] == $SECRET)
+      - pattern: if ($_REQUEST[$KEY] == $SECRET)
+      - pattern: if ($SECRET == $_GET[$KEY])
+      - pattern: if ($SECRET == $_POST[$KEY])
+    message: >
+      PHP type juggling: loose comparison (==) with user input can allow auth bypass.
+      For example, "0e123" == "0e456" evaluates to true in PHP (magic hash collision).
+      Use strict comparison (===) for authentication checks.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-697
+      owasp: "A07:2021 – Identification and Authentication Failures"
+
+  # ── preg_replace /e modifier (RCE) ────────────────────────────────────────
+  - id: php-preg-replace-e-modifier
+    pattern-either:
+      - pattern: preg_replace("/...$/e", ...)
+      - pattern: preg_replace('#...#e', ...)
+      - pattern: preg_replace("'...'e", ...)
+    message: >
+      Remote code execution: the /e modifier in preg_replace() evaluates the
+      replacement string as PHP code. Use preg_replace_callback() instead.
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-94
+      owasp: "A03:2021 – Injection"
+
+  # ── SQL injection (direct pattern fallback) ────────────────────────────────
+  - id: php-sql-injection-direct
+    pattern-either:
+      - pattern: mysql_query("..." . $_GET[...], ...)
+      - pattern: mysql_query("..." . $_POST[...], ...)
+      - pattern: mysql_query("..." . $_REQUEST[...], ...)
+      - pattern: mysqli_query(..., "..." . $_GET[...], ...)
+      - pattern: mysqli_query(..., "..." . $_POST[...], ...)
+      - pattern: mysqli_query(..., "..." . $_REQUEST[...], ...)
+      - pattern: pg_query(..., "..." . $_GET[...])
+      - pattern: pg_query(..., "..." . $_POST[...])
+    message: >
+      SQL injection: unsanitized user input concatenated directly into SQL query.
+      Use prepared statements with PDO or MySQLi bind_param().
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+      owasp: A03:2021 – Injection

@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: redteam
+      POSTGRES_PASSWORD: redteam
+      POSTGRES_DB: redteam
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/redteam/db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redteam"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  webhook:
+    build:
+      context: ./redteam-webhook
+      dockerfile: Dockerfile
+    ports:
+      - "9000:9000"
+    environment:
+      WEBHOOK_PORT: "9000"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    ports:
+      - "8080:8080"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - /tmp/redteam-scans:/tmp/redteam-scans
+      - ./src:/app/src
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file: .env
+    depends_on:
+      - agent
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

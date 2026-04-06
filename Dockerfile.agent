@@ -1,0 +1,35 @@
+FROM python:3.12-slim
+
+# Install Java 17 (Joern requirement) + git + curl + unzip
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-21-jre-headless \
+    git \
+    curl \
+    unzip \
+    php-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Joern via official install script
+RUN curl -fsSL "https://github.com/joernio/joern/releases/latest/download/joern-install.sh" \
+    -o /tmp/joern-install.sh \
+    && chmod +x /tmp/joern-install.sh \
+    && /tmp/joern-install.sh --install-dir /opt/joern \
+    && rm /tmp/joern-install.sh
+
+ENV PATH="/opt/joern/joern-cli:${PATH}"
+
+# Isolated Python venv — avoids externally-managed-environment block
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
+# Install Semgrep
+RUN pip install --no-cache-dir semgrep
+
+WORKDIR /app
+
+COPY pyproject.toml .
+COPY src/ src/
+
+RUN pip install --no-cache-dir -e .
+
+CMD ["redteam", "serve", "--port", "8080"]
