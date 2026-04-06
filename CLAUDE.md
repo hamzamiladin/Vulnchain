@@ -10,6 +10,7 @@
 - Never continuously check status after spawning a swarm — wait for results
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
+- NEVER add Co-Authored-By lines to commit messages
 
 ## File Organization
 
@@ -184,5 +185,5 @@ npx @claude-flow/cli@latest doctor --fix
 
 ## Support
 
-- Documentation: https://github.com/ruvnet/claude-flow
-- Issues: https://github.com/ruvnet/claude-flow/issues
+- Repository: https://github.com/hamzamiladin/Vulnchain
+- Issues: https://github.com/hamzamiladin/Vulnchain/issues
