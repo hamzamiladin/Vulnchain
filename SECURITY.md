@@ -14,10 +14,10 @@
 If you discover a security vulnerability in Vulnchain, please report it via one of these channels:
 
 1. **GitHub Private Vulnerability Reporting** (preferred): Use the
-   [Security tab → Report a vulnerability](https://github.com/your-org/vulnchain/security/advisories/new)
+   [Security tab → Report a vulnerability](https://github.com/hamzamiladin/Vulnchain/security/advisories/new)
    feature on this repository.
 
-2. **Email**: Send details to `security@your-org.com` with the subject line
+2. **Email**: Send details to `hamzamiladin123@gmail.com` with the subject line
    `[SECURITY] Vulnchain vulnerability`.
 
 ### What to Include
