@@ -21,7 +21,7 @@ pub struct AppState {
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| "redteam_webhook=debug,tower_http=debug".into()))
+            .unwrap_or_else(|_| "vulnchain_webhook=debug,tower_http=debug".into()))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
@@ -53,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(TraceLayer::new_for_http());
 
     let addr = format!("0.0.0.0:{port}");
-    info!("redteam-webhook listening on {addr}");
+    info!("vulnchain-webhook listening on {addr}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
     Ok(())

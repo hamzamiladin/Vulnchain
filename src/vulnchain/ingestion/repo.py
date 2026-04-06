@@ -8,8 +8,8 @@ from pathlib import Path
 import git
 from git import Repo
 
-from redteam.config import get_settings
-from redteam.ingestion.models import CommitInfo, SourceFile
+from vulnchain.config import get_settings
+from vulnchain.ingestion.models import CommitInfo, SourceFile
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ def clone_repo(repo_url: str, scan_id: str) -> Path:
     """
     Clone a remote git repository into the scan sandbox.
 
-    Clones to /tmp/redteam-scans/{scan_id}/repo — never to the project directory.
+    Clones to /tmp/vulnchain-scans/{scan_id}/repo — never to the project directory.
     """
     target_dir = _sandbox_dir(scan_id) / "repo"
 

@@ -3,8 +3,8 @@
 import logging
 import re
 
-from redteam.analysis.models import APIEndpoint, ASTResult, FunctionDef
-from redteam.ingestion.models import SourceFile
+from vulnchain.analysis.models import APIEndpoint, ASTResult, FunctionDef
+from vulnchain.ingestion.models import SourceFile
 
 logger = logging.getLogger(__name__)
 

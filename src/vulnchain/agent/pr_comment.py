@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 
-from redteam.agent.state import ScanState
+from vulnchain.agent.state import ScanState
 
 logger = logging.getLogger(__name__)
 

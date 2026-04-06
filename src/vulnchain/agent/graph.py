@@ -2,7 +2,7 @@
 
 from langgraph.graph import END, StateGraph
 
-from redteam.agent.nodes import (
+from vulnchain.agent.nodes import (
     clone_repo_node,
     detect_ai_code_node,
     generate_report_node,
@@ -15,7 +15,7 @@ from redteam.agent.nodes import (
     scan_dependencies_node,
     synthesize_attack_chains_node,
 )
-from redteam.agent.state import ScanState
+from vulnchain.agent.state import ScanState
 
 
 def _route_after_clone(state: ScanState) -> str:

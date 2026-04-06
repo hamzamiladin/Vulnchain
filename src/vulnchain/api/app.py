@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from redteam.config import get_settings
+from vulnchain.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ _EVOLVE_STMTS = [
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    from redteam.db.connection import close_pool, get_conn
+    from vulnchain.db.connection import close_pool, get_conn
     async with get_conn() as conn:
         for stmt in _CREATE_STMTS:
             await conn.execute(stmt)
@@ -144,7 +144,7 @@ def create_app() -> FastAPI:
         page: int = Query(1, ge=1),
         page_size: int = Query(20, ge=1, le=100),
     ) -> dict[str, Any]:
-        from redteam.db.connection import get_conn
+        from vulnchain.db.connection import get_conn
         offset = (page - 1) * page_size
         async with get_conn() as conn:
             total = await conn.fetchval("SELECT COUNT(*) FROM scans")
@@ -165,7 +165,7 @@ def create_app() -> FastAPI:
 
     @api.get("/api/scans/{scan_id}")
     async def get_scan(scan_id: str) -> dict[str, Any]:
-        from redteam.db.connection import get_conn
+        from vulnchain.db.connection import get_conn
         async with get_conn() as conn:
             scan = await conn.fetchrow("SELECT * FROM scans WHERE id = $1", scan_id)
             if not scan:
@@ -180,7 +180,7 @@ def create_app() -> FastAPI:
 
     @api.get("/api/scans/{scan_id}/report")
     async def get_report(scan_id: str) -> dict[str, str]:
-        from redteam.db.connection import get_conn
+        from vulnchain.db.connection import get_conn
         async with get_conn() as conn:
             scan = await conn.fetchrow("SELECT * FROM scans WHERE id = $1", scan_id)
             if not scan:
@@ -189,7 +189,7 @@ def create_app() -> FastAPI:
 
     @api.get("/api/stats")
     async def get_stats() -> dict[str, Any]:
-        from redteam.db.connection import get_conn
+        from vulnchain.db.connection import get_conn
         async with get_conn() as conn:
             total_scans = await conn.fetchval("SELECT COUNT(*) FROM scans") or 0
             total_findings = await conn.fetchval("SELECT COUNT(*) FROM findings") or 0
@@ -214,7 +214,7 @@ def create_app() -> FastAPI:
 
     @api.get("/api/repos")
     async def list_repos() -> dict[str, Any]:
-        from redteam.db.connection import get_conn
+        from vulnchain.db.connection import get_conn
         async with get_conn() as conn:
             rows = await conn.fetch(
                 """
@@ -227,7 +227,7 @@ def create_app() -> FastAPI:
 
     @api.get("/api/repos/{repo_name}/trend")
     async def repo_trend(repo_name: str) -> dict[str, Any]:
-        from redteam.db.connection import get_conn
+        from vulnchain.db.connection import get_conn
         async with get_conn() as conn:
             rows = await conn.fetch(
                 """
@@ -250,7 +250,7 @@ def create_app() -> FastAPI:
 
     @api.post("/api/scans", status_code=202)
     async def trigger_scan(request: TriggerScanRequest) -> dict[str, str]:
-        from redteam.db.connection import get_conn
+        from vulnchain.db.connection import get_conn
         scan_id = str(uuid.uuid4())
         repo_name = request.repo_url.rstrip("/").split("/")[-1]
 
@@ -271,7 +271,7 @@ def create_app() -> FastAPI:
     @api.post("/internal/scan", status_code=202)
     async def internal_trigger_scan(request: InternalScanRequest) -> dict[str, str]:
         """Called by the webhook service after creating the scan DB record."""
-        from redteam.db.connection import get_conn
+        from vulnchain.db.connection import get_conn
         async with get_conn() as conn:
             exists = await conn.fetchval("SELECT 1 FROM scans WHERE id = $1", request.scan_id)
             if not exists:
@@ -285,8 +285,8 @@ def create_app() -> FastAPI:
         pr_number: Optional[int],
         commit_sha: Optional[str],
     ) -> None:
-        from redteam.agent.graph import build_graph
-        from redteam.db.connection import get_conn
+        from vulnchain.agent.graph import build_graph
+        from vulnchain.db.connection import get_conn
 
         graph = build_graph()
         initial_state = {
@@ -362,7 +362,7 @@ def create_app() -> FastAPI:
         except Exception as exc:
             logger.error("Background scan %s failed: %s", scan_id, exc)
             try:
-                from redteam.db.connection import get_conn as _gc
+                from vulnchain.db.connection import get_conn as _gc
                 async with _gc() as conn:
                     await conn.execute(
                         "UPDATE scans SET status='failed', completed_at=$1, error_message=$2 WHERE id=$3",

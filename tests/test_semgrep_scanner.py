@@ -5,7 +5,7 @@ import subprocess
 import pytest
 from unittest.mock import MagicMock, patch
 
-from redteam.analysis.semgrep_scanner import run_semgrep, _parse_semgrep_finding
+from vulnchain.analysis.semgrep_scanner import run_semgrep, _parse_semgrep_finding
 
 
 def _make_result(check_id, severity, path, line_start, line_end, message):
@@ -44,7 +44,7 @@ def test_parse_semgrep_finding_fix_suggestion():
     assert finding.fix_suggestion == "Use parameterized queries"
 
 
-@patch("redteam.analysis.semgrep_scanner.subprocess.run")
+@patch("vulnchain.analysis.semgrep_scanner.subprocess.run")
 def test_run_semgrep_returns_findings(mock_run):
     payload = {"results": [_make_result("r1", "ERROR", "f.py", 1, 1, "msg")]}
     mock_run.return_value = MagicMock(
@@ -57,20 +57,20 @@ def test_run_semgrep_returns_findings(mock_run):
     assert findings[0].rule_id == "r1"
 
 
-@patch("redteam.analysis.semgrep_scanner.subprocess.run")
+@patch("vulnchain.analysis.semgrep_scanner.subprocess.run")
 def test_run_semgrep_no_findings(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stdout=json.dumps({"results": []}), stderr="")
     findings = run_semgrep("/fake/repo")
     assert findings == []
 
 
-@patch("redteam.analysis.semgrep_scanner.subprocess.run", side_effect=FileNotFoundError)
+@patch("vulnchain.analysis.semgrep_scanner.subprocess.run", side_effect=FileNotFoundError)
 def test_run_semgrep_not_installed(mock_run):
     findings = run_semgrep("/fake/repo")
     assert findings == []
 
 
-@patch("redteam.analysis.semgrep_scanner.subprocess.run")
+@patch("vulnchain.analysis.semgrep_scanner.subprocess.run")
 def test_run_semgrep_returns_empty_on_bad_exit(mock_run):
     # Exit code 2+ means Semgrep error — pipeline should degrade gracefully, not crash
     mock_run.return_value = MagicMock(returncode=2, stdout="", stderr="fatal error")

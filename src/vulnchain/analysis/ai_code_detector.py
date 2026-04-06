@@ -17,8 +17,8 @@ Scoring model (weights sum to 1.0):
 import logging
 import re
 
-from redteam.analysis.models import AICodeSegment
-from redteam.ingestion.models import CommitInfo, SourceFile
+from vulnchain.analysis.models import AICodeSegment
+from vulnchain.ingestion.models import CommitInfo, SourceFile
 
 logger = logging.getLogger(__name__)
 

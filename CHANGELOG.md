@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to RedTeam Agent are documented here.
+All notable changes to Vulnchain are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/).
@@ -64,4 +64,4 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Issue templates: bug report, feature request, rule proposal
 - `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE` (MIT)
 
-[0.1.0]: https://github.com/your-org/redteam-agent/releases/tag/v0.1.0
+[0.1.0]: https://github.com/your-org/vulnchain/releases/tag/v0.1.0

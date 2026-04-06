@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = Field(
-        default="postgresql://redteam:redteam@localhost:5432/redteam",
+        default="postgresql://vulnchain:vulnchain@localhost:5432/vulnchain",
     )
 
     # Anthropic
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     github_webhook_secret: str = Field(default="")
 
     # Agent config
-    scan_sandbox_dir: Path = Field(default=Path("/tmp/redteam-scans"))
+    scan_sandbox_dir: Path = Field(default=Path("/tmp/vulnchain-scans"))
     max_repo_size_mb: int = Field(default=500)
     semgrep_timeout_seconds: int = Field(default=120)
     joern_timeout_seconds: int = Field(default=300)

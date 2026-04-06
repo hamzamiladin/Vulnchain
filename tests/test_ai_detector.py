@@ -1,7 +1,7 @@
 """Tests for AI-generated code detector."""
 
 import pytest
-from redteam.analysis.ai_code_detector import (
+from vulnchain.analysis.ai_code_detector import (
     detect_ai_code,
     _score_commit_signals,
     _score_code_patterns,
@@ -11,7 +11,7 @@ from redteam.analysis.ai_code_detector import (
     _score_placeholder_strings,
     MIN_CONFIDENCE,
 )
-from redteam.ingestion.models import SourceFile, CommitInfo
+from vulnchain.ingestion.models import SourceFile, CommitInfo
 
 
 # ── commit signal tests ───────────────────────────────────────────────────────

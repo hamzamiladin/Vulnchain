@@ -8,7 +8,7 @@ import json
 
 import asyncpg
 
-from redteam.config import get_settings
+from vulnchain.config import get_settings
 
 logger = logging.getLogger(__name__)
 

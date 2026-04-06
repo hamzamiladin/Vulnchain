@@ -7,19 +7,19 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from redteam.agent.prompts import (
+from vulnchain.agent.prompts import (
     ATTACK_CHAIN_PROMPT,
     LLM_CODE_REVIEW_PROMPT,
     THREAT_MODEL_PROMPT,
 )
-from redteam.agent.state import ScanState
-from redteam.analysis.ai_code_detector import detect_ai_code
-from redteam.analysis.ast_analyzer import analyze_files
-from redteam.analysis.dependency_scanner import scan_dependencies
-from redteam.analysis.joern_runner import run_all_joern_queries
-from redteam.analysis.semgrep_scanner import run_semgrep
-from redteam.config import get_settings
-from redteam.ingestion.repo import (
+from vulnchain.agent.state import ScanState
+from vulnchain.analysis.ai_code_detector import detect_ai_code
+from vulnchain.analysis.ast_analyzer import analyze_files
+from vulnchain.analysis.dependency_scanner import scan_dependencies
+from vulnchain.analysis.joern_runner import run_all_joern_queries
+from vulnchain.analysis.semgrep_scanner import run_semgrep
+from vulnchain.config import get_settings
+from vulnchain.ingestion.repo import (
     cleanup_scan_dir,
     clone_repo,
     collect_commit_history,
@@ -501,7 +501,7 @@ def synthesize_attack_chains_node(state: ScanState) -> dict[str, Any]:
         )
 
         chain_data = json.loads(content)
-        from redteam.analysis.models import AttackChain
+        from vulnchain.analysis.models import AttackChain
         chains = [
             AttackChain(
                 title=c.get("title", "Unnamed chain"),
@@ -527,7 +527,7 @@ def synthesize_attack_chains_node(state: ScanState) -> dict[str, Any]:
 def generate_report_node(state: ScanState) -> dict[str, Any]:
     logger.info("[generate_report] generating reports for scan %s", state["scan_id"])
     try:
-        from redteam.reporting.formatter import generate_markdown, generate_sarif
+        from vulnchain.reporting.formatter import generate_markdown, generate_sarif
         return {
             "report_markdown": generate_markdown(state),
             "report_sarif": generate_sarif(state),

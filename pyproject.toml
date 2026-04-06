@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "redteam-agent"
+name = "vulnchain"
 version = "0.1.0"
 description = "Autonomous AI-powered security auditing tool for software consultancies"
 requires-python = ">=3.12"
@@ -37,10 +37,10 @@ dev = [
 ]
 
 [project.scripts]
-redteam = "redteam.main:app"
+vulnchain = "vulnchain.main:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/redteam"]
+packages = ["src/vulnchain"]
 
 [tool.ruff]
 line-length = 100

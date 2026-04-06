@@ -1,10 +1,10 @@
 [package]
-name = "redteam-webhook"
+name = "vulnchain-webhook"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "redteam-webhook"
+name = "vulnchain-webhook"
 path = "src/main.rs"
 
 [dependencies]

@@ -4,7 +4,7 @@
 [changelog]
 header = """
 # Changelog\n
-All notable changes to RedTeam Agent are documented here.\n
+All notable changes to Vulnchain are documented here.\n
 """
 body = """
 {% if version %}\

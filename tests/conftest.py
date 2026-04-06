@@ -2,8 +2,8 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from redteam.ingestion.models import SourceFile, CommitInfo
-from redteam.analysis.models import (
+from vulnchain.ingestion.models import SourceFile, CommitInfo
+from vulnchain.analysis.models import (
     SemgrepFinding,
     JoernFinding,
     AICodeSegment,

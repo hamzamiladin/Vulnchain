@@ -5,8 +5,8 @@ import logging
 import subprocess
 from pathlib import Path
 
-from redteam.analysis.models import SemgrepFinding
-from redteam.config import get_settings
+from vulnchain.analysis.models import SemgrepFinding
+from vulnchain.config import get_settings
 
 logger = logging.getLogger(__name__)
 

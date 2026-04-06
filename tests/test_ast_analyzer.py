@@ -1,8 +1,8 @@
 """Tests for AST analyzer."""
 
 import pytest
-from redteam.analysis.ast_analyzer import analyze_file
-from redteam.ingestion.models import SourceFile
+from vulnchain.analysis.ast_analyzer import analyze_file
+from vulnchain.ingestion.models import SourceFile
 
 
 def test_python_function_detection(python_source_file):

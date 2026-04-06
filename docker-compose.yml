@@ -2,23 +2,23 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: redteam
-      POSTGRES_PASSWORD: redteam
-      POSTGRES_DB: redteam
+      POSTGRES_USER: vulnchain
+      POSTGRES_PASSWORD: vulnchain
+      POSTGRES_DB: vulnchain
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./src/redteam/db/migrations:/docker-entrypoint-initdb.d
+      - ./src/vulnchain/db/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U redteam"]
+      test: ["CMD-SHELL", "pg_isready -U vulnchain"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   webhook:
     build:
-      context: ./redteam-webhook
+      context: ./vulnchain-webhook
       dockerfile: Dockerfile
     ports:
       - "9000:9000"
@@ -41,7 +41,7 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - /tmp/redteam-scans:/tmp/redteam-scans
+      - /tmp/vulnchain-scans:/tmp/vulnchain-scans
       - ./src:/app/src
     restart: unless-stopped
 

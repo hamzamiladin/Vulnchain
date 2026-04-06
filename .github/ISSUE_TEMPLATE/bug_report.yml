@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a reproducible problem with RedTeam Agent
+description: Report a reproducible problem with Vulnchain Agent
 labels: ["bug", "needs-triage"]
 
 body:

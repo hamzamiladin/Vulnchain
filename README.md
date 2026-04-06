@@ -1,20 +1,20 @@
-# RedTeam Agent
+# Vulnchain
 
 **Autonomous AI-powered security auditing for software teams.**
 
-RedTeam Agent scans any Git repository and produces a prioritised vulnerability report with attack chains, a STRIDE threat model, and an AI-generated code risk score — all in one `docker compose up`. No SaaS account, no API tokens beyond your own Claude key.
+Vulnchain scans any Git repository and produces a prioritised vulnerability report with attack chains, a STRIDE threat model, and an AI-generated code risk score — all in one `docker compose up`. No SaaS account, no API tokens beyond your own Claude key.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/your-org/redteam-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/redteam-agent/actions/workflows/ci.yml)
+[![CI](https://github.com/your-org/vulnchain/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/vulnchain/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/docker-compose-blue.svg)](docker-compose.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 ---
 
-## Why RedTeam Agent?
+## Why Vulnchain?
 
-| Feature | RedTeam Agent | Semgrep OSS | CodeQL | Snyk |
+| Feature | Vulnchain | Semgrep OSS | CodeQL | Snyk |
 |---------|:---:|:---:|:---:|:---:|
 | Multi-engine SAST (Semgrep + CPG taint) | ✅ | ❌ | partial | ❌ |
 | Joern inter-procedural taint (13 scripts) | ✅ | ❌ | ✅ | ❌ |
@@ -72,8 +72,8 @@ GitHub Webhook (Rust :9000)
 - An [Anthropic API key](https://console.anthropic.com/)
 
 ```bash
-git clone https://github.com/your-org/redteam-agent
-cd redteam-agent
+git clone https://github.com/your-org/vulnchain
+cd vulnchain
 cp .env.example .env
 # Edit .env — set ANTHROPIC_API_KEY at minimum
 docker compose up --build -d
@@ -103,10 +103,10 @@ open http://localhost:3000
 ```bash
 pip install -e ".[dev]"
 export ANTHROPIC_API_KEY=sk-ant-...
-export DATABASE_URL=postgresql://redteam:redteam@localhost:5432/redteam
+export DATABASE_URL=postgresql://vulnchain:vulnchain@localhost:5432/vulnchain
 
-redteam scan https://github.com/digininja/DVWA
-redteam serve --port 8080
+vulnchain scan https://github.com/digininja/DVWA
+vulnchain serve --port 8080
 ```
 
 ---
@@ -130,7 +130,7 @@ redteam serve --port 8080
 
 ## Semgrep Rules (135+ rules, 10 languages, no auth)
 
-All rules live in `src/redteam/semgrep_rules/`. Run locally with no Semgrep account.
+All rules live in `src/vulnchain/semgrep_rules/`. Run locally with no Semgrep account.
 
 | File | Language | Rules | Key Coverage |
 |------|----------|-------|-------------|
@@ -256,7 +256,7 @@ The Rust webhook service verifies HMAC-SHA256 signatures, creates a scan record,
 ## Project Structure
 
 ```
-redteam-agent/
+vulnchain/
 ├── LICENSE
 ├── README.md
 ├── SECURITY.md
@@ -266,7 +266,7 @@ redteam-agent/
 ├── pyproject.toml
 ├── .env.example
 │
-├── src/redteam/
+├── src/vulnchain/
 │   ├── main.py                    # CLI entrypoint (typer)
 │   ├── config.py                  # Pydantic settings
 │   ├── agent/
@@ -301,7 +301,7 @@ redteam-agent/
 │       ├── FindingsTable.tsx      # Severity/source badges
 │       └── AttackChainCard.tsx    # Attack chain display
 │
-├── redteam-webhook/               # Rust webhook receiver
+├── vulnchain-webhook/               # Rust webhook receiver
 │   ├── src/
 │   │   ├── main.rs                # Axum server setup
 │   │   ├── webhook.rs             # GitHub webhook + HMAC-SHA256 verification
@@ -321,7 +321,7 @@ redteam-agent/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `postgresql://redteam:redteam@localhost:5432/redteam` | PostgreSQL connection string |
+| `DATABASE_URL` | `postgresql://vulnchain:vulnchain@localhost:5432/vulnchain` | PostgreSQL connection string |
 | `ANTHROPIC_API_KEY` | — | **Required.** Used for LLM review, threat model, attack chains |
 | `LLM_MODEL` | `claude-sonnet-4-6` | Claude model ID |
 | `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
@@ -329,7 +329,7 @@ redteam-agent/
 | `GITHUB_WEBHOOK_SECRET` | — | HMAC-SHA256 secret for webhook verification |
 | `GITHUB_APP_PRIVATE_KEY_PATH` | `./github-app.pem` | Path to GitHub App private key PEM |
 | `AGENT_URL` | `http://agent:8080` | Internal agent URL used by webhook service |
-| `SCAN_SANDBOX_DIR` | `/tmp/redteam-scans` | Where repos are cloned |
+| `SCAN_SANDBOX_DIR` | `/tmp/vulnchain-scans` | Where repos are cloned |
 | `MAX_REPO_SIZE_MB` | `500` | Reject repos larger than this |
 | `SEMGREP_TIMEOUT_SECONDS` | `120` | Semgrep per-scan timeout |
 | `JOERN_TIMEOUT_SECONDS` | `300` | Joern per-scan timeout (JVM startup ~15s) |
@@ -344,14 +344,14 @@ redteam-agent/
 pip install -e ".[dev]"
 
 # Run tests
-pytest tests/ -v --cov=src/redteam
+pytest tests/ -v --cov=src/vulnchain
 
 # Lint + typecheck
 ruff check src/ tests/
 mypy src/
 
 # Validate all Semgrep rules
-semgrep --config src/redteam/semgrep_rules/ --validate
+semgrep --config src/vulnchain/semgrep_rules/ --validate
 
 # Rebuild just the agent after code changes
 docker compose up --build -d agent
@@ -395,10 +395,10 @@ Areas we especially want help with:
 
 ## Security
 
-If you discover a security vulnerability in RedTeam Agent itself, please follow the process in [SECURITY.md](SECURITY.md). Do not open a public issue.
+If you discover a security vulnerability in Vulnchain itself, please follow the process in [SECURITY.md](SECURITY.md). Do not open a public issue.
 
 ---
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2024 RedTeam Agent Contributors
+[MIT](LICENSE) — Copyright (c) 2024 Vulnchain Contributors

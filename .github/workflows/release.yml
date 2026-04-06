@@ -62,7 +62,7 @@ jobs:
       - name: Build and push webhook image
         uses: docker/build-push-action@v5
         with:
-          context: ./redteam-webhook
+          context: ./vulnchain-webhook
           push: true
           tags: ${{ steps.meta-webhook.outputs.tags }}
           labels: ${{ steps.meta-webhook.outputs.labels }}

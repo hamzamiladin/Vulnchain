@@ -13,7 +13,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 app = typer.Typer(
-    name="redteam",
+    name="vulnchain",
     help="RedTeam Agent — AI-powered security auditing.",
     add_completion=False,
 )
@@ -42,7 +42,7 @@ def cmd_scan(
     console.print(Panel(f"[bold green]RedTeam Agent[/bold green]\nScan ID: {scan_id}\nTarget: {target}"))
 
     async def _run() -> None:
-        from redteam.agent.graph import build_graph
+        from vulnchain.agent.graph import build_graph
         graph = build_graph()
         initial_state = {
             "repo_url": target, "pr_number": pr_number, "commit_sha": pr_sha,
@@ -87,7 +87,7 @@ def cmd_results(scan_id: str = typer.Argument(...)) -> None:
     _setup_logging()
 
     async def _run() -> None:
-        from redteam.db.connection import get_conn
+        from vulnchain.db.connection import get_conn
         async with get_conn() as conn:
             scan = await conn.fetchrow("SELECT * FROM scans WHERE id = $1", scan_id)
             if not scan:
@@ -127,7 +127,7 @@ def cmd_list(limit: int = typer.Option(10, "--limit", "-n")) -> None:
     _setup_logging()
 
     async def _run() -> None:
-        from redteam.db.connection import get_conn
+        from vulnchain.db.connection import get_conn
         async with get_conn() as conn:
             rows = await conn.fetch(
                 "SELECT id, repo_name, status, created_at, "
@@ -160,7 +160,7 @@ def cmd_serve(
     """Start the FastAPI REST API server."""
     _setup_logging()
     import uvicorn
-    from redteam.api.app import create_app
+    from vulnchain.api.app import create_app
     console.print(f"[green]Starting RedTeam API server on {host}:{port}[/green]")
     uvicorn.run(create_app(), host=host, port=port, reload=reload)
 

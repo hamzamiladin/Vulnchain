@@ -31,7 +31,7 @@ jobs:
         run: mypy src/
 
       - name: Run tests
-        run: pytest tests/ -v --cov=src/redteam --cov-report=xml --cov-report=term-missing
+        run: pytest tests/ -v --cov=src/vulnchain --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -52,7 +52,7 @@ jobs:
         run: pip install semgrep
 
       - name: Validate all rules
-        run: semgrep --config src/redteam/semgrep_rules/ --validate
+        run: semgrep --config src/vulnchain/semgrep_rules/ --validate
 
   # ── Secrets scanning ──────────────────────────────────────────────────────
   secrets:
@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: redteam-webhook
+        working-directory: vulnchain-webhook
 
     steps:
       - uses: actions/checkout@v4
@@ -91,8 +91,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            redteam-webhook/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('redteam-webhook/Cargo.lock') }}
+            vulnchain-webhook/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('vulnchain-webhook/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Build
@@ -119,15 +119,15 @@ jobs:
           context: .
           file: Dockerfile.agent
           push: false
-          tags: redteam-agent:ci
+          tags: vulnchain-agent:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Build webhook image
         uses: docker/build-push-action@v5
         with:
-          context: ./redteam-webhook
+          context: ./vulnchain-webhook
           push: false
-          tags: redteam-webhook:ci
+          tags: vulnchain-webhook:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max

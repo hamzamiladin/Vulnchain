@@ -1,4 +1,4 @@
-# Contributing to RedTeam Agent
+# Contributing to Vulnchain
 
 Thank you for your interest in contributing. This document covers the contribution workflow, coding standards, and how to propose new security rules.
 
@@ -31,14 +31,14 @@ Thank you for your interest in contributing. This document covers the contributi
 pip install -e ".[dev]"
 
 # Run the full test suite
-pytest tests/ -v --cov=src/redteam
+pytest tests/ -v --cov=src/vulnchain
 
 # Lint (ruff) + type checking (mypy)
 ruff check src/ tests/
 mypy src/
 
 # Validate all Semgrep rules (requires semgrep installed)
-semgrep --config src/redteam/semgrep_rules/ --validate
+semgrep --config src/vulnchain/semgrep_rules/ --validate
 
 # Start all services locally
 docker compose up --build -d
@@ -71,7 +71,7 @@ Open an issue with `[rule-proposal]` in the title. See the [Adding Semgrep Rules
 
 ## Adding Semgrep Rules
 
-Semgrep rules live in `src/redteam/semgrep_rules/`. Each file maps to one language or cross-language concern.
+Semgrep rules live in `src/vulnchain/semgrep_rules/`. Each file maps to one language or cross-language concern.
 
 ### Rule Requirements
 
@@ -100,13 +100,13 @@ Semgrep rules live in `src/redteam/semgrep_rules/`. Each file maps to one langua
 
 ### Adding a New Language File
 
-If you're adding rules for a language not yet covered, create `src/redteam/semgrep_rules/<lang>-security.yaml` and open a PR. Update the rules table in `README.md`.
+If you're adding rules for a language not yet covered, create `src/vulnchain/semgrep_rules/<lang>-security.yaml` and open a PR. Update the rules table in `README.md`.
 
 ---
 
 ## Adding Joern CPG Scripts
 
-Joern scripts live in `src/redteam/joern_scripts/` and use Joern's Scala DSL.
+Joern scripts live in `src/vulnchain/joern_scripts/` and use Joern's Scala DSL.
 
 ### Script Requirements
 
@@ -115,7 +115,7 @@ Joern scripts live in `src/redteam/joern_scripts/` and use Joern's Scala DSL.
    `{"file": "...", "line": N, "method": "...", "enclosing_method": "...", "severity": "...", "rule": "..."}`
 3. Use `.distinct` to deduplicate combined result sets.
 4. Prefer **parameter-level taint** (`cpg.method.parameter`) over broad identifier matching to reduce false positives.
-5. Add the new script to `_SCRIPT_RULE_MAP` in `src/redteam/analysis/joern_runner.py`.
+5. Add the new script to `_SCRIPT_RULE_MAP` in `src/vulnchain/analysis/joern_runner.py`.
 
 ### Testing Your Script
 
@@ -124,7 +124,7 @@ Joern scripts live in `src/redteam/joern_scripts/` and use Joern's Scala DSL.
 joern-parse /path/to/test/repo --output /tmp/test.cpg
 
 # Run your script
-joern --script src/redteam/joern_scripts/my_script.sc \
+joern --script src/vulnchain/joern_scripts/my_script.sc \
       --param cpgFile=/tmp/test.cpg \
       --param outputFile=/tmp/out.json
 
@@ -158,7 +158,7 @@ test: add tests for prototype pollution joern script
 
 1. Ensure `pytest tests/ -v` passes
 2. Ensure `ruff check src/ tests/` passes
-3. Ensure `semgrep --config src/redteam/semgrep_rules/ --validate` passes (if you added/changed rules)
+3. Ensure `semgrep --config src/vulnchain/semgrep_rules/ --validate` passes (if you added/changed rules)
 4. Fill out the PR template completely
 5. Link any related issues
 6. A maintainer will review within a few days

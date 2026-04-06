@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Have an idea that would make RedTeam Agent more useful? We'd love to hear it.
+        Have an idea that would make Vulnchain Agent more useful? We'd love to hear it.
 
   - type: textarea
     id: problem

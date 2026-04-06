@@ -4,7 +4,7 @@ import "./globals.css";
 import { QueryProvider } from "@/components/QueryProvider";
 
 export const metadata: Metadata = {
-  title: "RedTeam Agent — Security Dashboard",
+  title: "Vulnchain Agent — Security Dashboard",
   description: "Autonomous AI-powered security audit dashboard",
 };
 
@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     strokeLinejoin="round"
                   />
                 </svg>
-                <span className="text-base font-semibold text-slate-800 tracking-tight">RedTeam Agent</span>
+                <span className="text-base font-semibold text-slate-800 tracking-tight">Vulnchain Agent</span>
               </Link>
               <nav className="flex items-center gap-1 text-sm">
                 <Link
@@ -52,7 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="ml-auto flex items-center gap-2">
                 <span className="text-xs text-slate-400 font-mono">v0.2.0</span>
                 <a
-                  href="https://github.com/anthropics/redteam-agent"
+                  href="https://github.com/anthropics/vulnchain-agent"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-slate-400 hover:text-slate-700 transition-colors"

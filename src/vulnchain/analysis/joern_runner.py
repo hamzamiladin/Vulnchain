@@ -8,8 +8,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from redteam.analysis.models import JoernFinding
-from redteam.config import get_settings
+from vulnchain.analysis.models import JoernFinding
+from vulnchain.config import get_settings
 
 logger = logging.getLogger(__name__)
 

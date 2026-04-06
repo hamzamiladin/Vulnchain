@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from redteam.agent.state import ScanState
-from redteam.agent.graph import build_graph
+from vulnchain.agent.state import ScanState
+from vulnchain.agent.graph import build_graph
 
 
 @pytest.fixture
@@ -48,13 +48,13 @@ def test_state_error_initially_none(minimal_state):
     assert minimal_state["error"] is None
 
 
-@patch("redteam.agent.nodes.clone_or_open_repo")
-@patch("redteam.agent.nodes.collect_source_files")
-@patch("redteam.agent.nodes.collect_commit_history")
+@patch("vulnchain.agent.nodes.clone_or_open_repo")
+@patch("vulnchain.agent.nodes.collect_source_files")
+@patch("vulnchain.agent.nodes.collect_commit_history")
 def test_clone_repo_node_sets_source_files(
     mock_commits, mock_files, mock_clone, minimal_state
 ):
-    from redteam.agent.nodes import clone_repo_node
+    from vulnchain.agent.nodes import clone_repo_node
 
     mock_clone.return_value = "/tmp/fake-repo"
     mock_files.return_value = []

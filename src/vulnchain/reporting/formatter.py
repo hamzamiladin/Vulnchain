@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from redteam.agent.state import ScanState
+from vulnchain.agent.state import ScanState
 
 logger = logging.getLogger(__name__)
 
