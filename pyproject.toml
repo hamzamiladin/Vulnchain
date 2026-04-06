@@ -43,12 +43,20 @@ vulnchain = "vulnchain.main:app"
 packages = ["src/vulnchain"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "UP", "S", "B", "A", "C4", "RET", "SIM"]
-ignore = ["S101", "S603", "S607"]
+ignore = [
+    "S101",  # assert used in tests
+    "S603",  # subprocess without shell=True is fine
+    "S607",  # start process with partial path
+    "S108",  # /tmp usage is intentional (configurable sandbox dir)
+    "S104",  # 0.0.0.0 binding intentional for Docker
+    "B008",  # typer.Option() in defaults is the standard Typer pattern
+    "S310",  # URL open is for internal tooling only
+]
 
 [tool.mypy]
 python_version = "3.12"

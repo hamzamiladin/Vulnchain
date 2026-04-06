@@ -43,8 +43,10 @@ def run_semgrep(repo_path: str) -> list[SemgrepFinding]:
         "--json",
         "--quiet",
         "--no-git-ignore",
-        "--max-memory", "2000",
-        "--timeout", "60",
+        "--max-memory",
+        "2000",
+        "--timeout",
+        "60",
         "--disable-version-check",
         "--metrics=off",
         repo_path,
@@ -58,7 +60,11 @@ def run_semgrep(repo_path: str) -> list[SemgrepFinding]:
     logger.info("Running Semgrep on %s", repo_path)
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=timeout, env=env,
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         logger.error("Semgrep timed out after %d seconds", timeout)

@@ -12,8 +12,8 @@ in LLM prompts.
 import json
 import logging
 import re
-import urllib.request
 import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -44,54 +44,56 @@ _ECOSYSTEM_MAP = {
 # Framework name → (manifest file, json path or regex pattern)
 _FRAMEWORK_DETECTORS = [
     # JavaScript / TypeScript frameworks
-    ("next.js",        "package.json",    ["dependencies", "next"]),
-    ("react",          "package.json",    ["dependencies", "react"]),
-    ("vue",            "package.json",    ["dependencies", "vue"]),
-    ("angular",        "package.json",    ["dependencies", "@angular/core"]),
-    ("express",        "package.json",    ["dependencies", "express"]),
-    ("fastify",        "package.json",    ["dependencies", "fastify"]),
-    ("nuxt",           "package.json",    ["dependencies", "nuxt"]),
-    ("svelte",         "package.json",    ["devDependencies", "svelte"]),
-    ("typescript",     "package.json",    ["devDependencies", "typescript"]),
+    ("next.js", "package.json", ["dependencies", "next"]),
+    ("react", "package.json", ["dependencies", "react"]),
+    ("vue", "package.json", ["dependencies", "vue"]),
+    ("angular", "package.json", ["dependencies", "@angular/core"]),
+    ("express", "package.json", ["dependencies", "express"]),
+    ("fastify", "package.json", ["dependencies", "fastify"]),
+    ("nuxt", "package.json", ["dependencies", "nuxt"]),
+    ("svelte", "package.json", ["devDependencies", "svelte"]),
+    ("typescript", "package.json", ["devDependencies", "typescript"]),
     # PHP frameworks
-    ("laravel",        "composer.json",   ["require", "laravel/framework"]),
-    ("symfony",        "composer.json",   ["require", "symfony/framework-bundle"]),
-    ("wordpress",      "composer.json",   ["require", "johnpbloch/wordpress"]),
-    ("codeigniter",    "composer.json",   ["require", "codeigniter4/framework"]),
-    ("slim",           "composer.json",   ["require", "slim/slim"]),
+    ("laravel", "composer.json", ["require", "laravel/framework"]),
+    ("symfony", "composer.json", ["require", "symfony/framework-bundle"]),
+    ("wordpress", "composer.json", ["require", "johnpbloch/wordpress"]),
+    ("codeigniter", "composer.json", ["require", "codeigniter4/framework"]),
+    ("slim", "composer.json", ["require", "slim/slim"]),
     # Python frameworks
-    ("django",         "requirements.txt", None),
-    ("flask",          "requirements.txt", None),
-    ("fastapi",        "requirements.txt", None),
-    ("sqlalchemy",     "requirements.txt", None),
-    ("celery",         "requirements.txt", None),
+    ("django", "requirements.txt", None),
+    ("flask", "requirements.txt", None),
+    ("fastapi", "requirements.txt", None),
+    ("sqlalchemy", "requirements.txt", None),
+    ("celery", "requirements.txt", None),
     # Go frameworks
-    ("gin",            "go.mod",          None),
-    ("echo",           "go.mod",          None),
-    ("fiber",          "go.mod",          None),
+    ("gin", "go.mod", None),
+    ("echo", "go.mod", None),
+    ("fiber", "go.mod", None),
 ]
 
 
 @dataclass
 class DependencyFinding:
     """A known CVE found in a project dependency."""
+
     package_name: str
     installed_version: str
     ecosystem: str
-    cve_id: str          # e.g. "CVE-2023-12345" or OSV ID like "GHSA-xxxx"
-    severity: str        # critical / high / medium / low
+    cve_id: str  # e.g. "CVE-2023-12345" or OSV ID like "GHSA-xxxx"
+    severity: str  # critical / high / medium / low
     cvss_score: float
     title: str
     description: str
-    fixed_version: str   # earliest version that fixes this
-    manifest_file: str   # which file declared this package
+    fixed_version: str  # earliest version that fixes this
+    manifest_file: str  # which file declared this package
 
 
 @dataclass
 class TechProfile:
     """Technology stack detected in the repository."""
-    languages: dict[str, str] = field(default_factory=dict)    # lang → version
-    frameworks: dict[str, str] = field(default_factory=dict)   # framework → version
+
+    languages: dict[str, str] = field(default_factory=dict)  # lang → version
+    frameworks: dict[str, str] = field(default_factory=dict)  # framework → version
     databases: list[str] = field(default_factory=list)
     package_counts: dict[str, int] = field(default_factory=dict)  # ecosystem → count
     manifest_files: list[str] = field(default_factory=list)
@@ -100,19 +102,15 @@ class TechProfile:
         """Human-readable summary for LLM prompts."""
         parts = []
         if self.languages:
-            parts.append("Runtime versions: " + ", ".join(
-                f"{lang} {ver}" for lang, ver in self.languages.items()
-            ))
+            parts.append("Runtime versions: " + ", ".join(f"{lang} {ver}" for lang, ver in self.languages.items()))
         if self.frameworks:
-            parts.append("Frameworks: " + ", ".join(
-                f"{fw} {ver}" for fw, ver in self.frameworks.items()
-            ))
+            parts.append("Frameworks: " + ", ".join(f"{fw} {ver}" for fw, ver in self.frameworks.items()))
         if self.databases:
             parts.append("Databases detected: " + ", ".join(self.databases))
         if self.package_counts:
-            parts.append("Dependencies: " + ", ".join(
-                f"{eco} ({n} packages)" for eco, n in self.package_counts.items()
-            ))
+            parts.append(
+                "Dependencies: " + ", ".join(f"{eco} ({n} packages)" for eco, n in self.package_counts.items())
+            )
         return "\n".join(parts) if parts else "No technology profile detected"
 
 
@@ -153,6 +151,7 @@ def scan_dependencies(repo_path: str) -> tuple[list[DependencyFinding], TechProf
 # ──────────────────────────────────────────────────────────────────────────────
 # Manifest parsers
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def _parse_package_json_files(
     repo: Path,
@@ -247,8 +246,7 @@ def _parse_go_mod_files(
 
         # Dependencies
         for m in re.finditer(r"^\s+(\S+)\s+(v[\d.]+\S*)", text, re.MULTILINE):
-            packages.append((m.group(1), m.group(2).lstrip("v"), "Go",
-                             str(gm.relative_to(repo))))
+            packages.append((m.group(1), m.group(2).lstrip("v"), "Go", str(gm.relative_to(repo))))
 
 
 def _parse_pyproject_toml_files(
@@ -282,15 +280,16 @@ def _parse_pyproject_toml_files(
 # Runtime / framework detection
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _detect_runtime_versions(repo: Path, tech: TechProfile) -> None:
     """Detect runtime versions from version config files."""
     version_files = {
-        ".nvmrc":          ("node", lambda t: t.strip().lstrip("v")),
-        ".node-version":   ("node", lambda t: t.strip().lstrip("v")),
+        ".nvmrc": ("node", lambda t: t.strip().lstrip("v")),
+        ".node-version": ("node", lambda t: t.strip().lstrip("v")),
         ".python-version": ("python", lambda t: t.strip()),
-        ".ruby-version":   ("ruby", lambda t: t.strip()),
-        ".go-version":     ("go", lambda t: t.strip()),
-        ".tool-versions":  ("multi", _parse_tool_versions),
+        ".ruby-version": ("ruby", lambda t: t.strip()),
+        ".go-version": ("go", lambda t: t.strip()),
+        ".tool-versions": ("multi", _parse_tool_versions),
     }
     for filename, (lang, parser) in version_files.items():
         candidate = repo / filename
@@ -311,10 +310,9 @@ def _detect_runtime_versions(repo: Path, tech: TechProfile) -> None:
     # PHP: check for .php-version or Dockerfile FROM php:X.X
     php_ver = repo / ".php-version"
     if php_ver.exists():
-        try:
+        import contextlib
+        with contextlib.suppress(OSError):
             tech.languages["php"] = php_ver.read_text().strip()
-        except OSError:
-            pass
     else:
         # Try Dockerfile
         for dockerfile in ["Dockerfile", "Dockerfile.php", "docker/Dockerfile"]:
@@ -357,8 +355,16 @@ def _detect_framework_versions(repo: Path, tech: TechProfile) -> None:
             continue
         try:
             text = rf.read_text(encoding="utf-8", errors="replace").lower()
-            for fw in ("django", "flask", "fastapi", "celery", "sqlalchemy",
-                       "tornado", "aiohttp", "starlette"):
+            for fw in (
+                "django",
+                "flask",
+                "fastapi",
+                "celery",
+                "sqlalchemy",
+                "tornado",
+                "aiohttp",
+                "starlette",
+            ):
                 m = re.search(rf"^{fw}[=!<>~^]+([0-9][^\s#]*)", text, re.MULTILINE)
                 if m and fw not in tech.frameworks:
                     tech.frameworks[fw] = m.group(1)
@@ -370,16 +376,18 @@ def _detect_databases(repo: Path, tech: TechProfile) -> None:
     """Heuristically detect database technology from config/package files."""
     db_signals = {
         "postgresql": ["psycopg", "pg", "postgres", "postgresql", "asyncpg"],
-        "mysql":      ["mysql", "mysqli", "mysqlclient", "pymysql"],
-        "mongodb":    ["mongoose", "mongodb", "pymongo", "motor"],
-        "redis":      ["redis", "ioredis", "aioredis"],
-        "sqlite":     ["sqlite", "better-sqlite3"],
+        "mysql": ["mysql", "mysqli", "mysqlclient", "pymysql"],
+        "mongodb": ["mongoose", "mongodb", "pymongo", "motor"],
+        "redis": ["redis", "ioredis", "aioredis"],
+        "sqlite": ["sqlite", "better-sqlite3"],
         "elasticsearch": ["elasticsearch", "elastic"],
     }
 
-    search_files = list(repo.rglob("package.json"))[:5] + \
-                   list(repo.rglob("requirements*.txt"))[:5] + \
-                   list(repo.rglob("composer.json"))[:5]
+    search_files = (
+        list(repo.rglob("package.json"))[:5]
+        + list(repo.rglob("requirements*.txt"))[:5]
+        + list(repo.rglob("composer.json"))[:5]
+    )
 
     detected = set()
     for f in search_files:
@@ -400,6 +408,7 @@ def _detect_databases(repo: Path, tech: TechProfile) -> None:
 # OSV API
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _query_osv_batch(
     packages: list[tuple[str, str, str, str]],
 ) -> list[DependencyFinding]:
@@ -407,7 +416,7 @@ def _query_osv_batch(
     findings: list[DependencyFinding] = []
 
     for batch_start in range(0, len(packages), OSV_BATCH_SIZE):
-        batch = packages[batch_start: batch_start + OSV_BATCH_SIZE]
+        batch = packages[batch_start : batch_start + OSV_BATCH_SIZE]
         queries = [
             {
                 "version": ver,
@@ -432,9 +441,7 @@ def _query_osv_batch(
         for i, result in enumerate(data.get("results", [])):
             pkg_name, pkg_ver, ecosystem, manifest_file = batch[i]
             for vuln in result.get("vulns", []):
-                finding = _osv_vuln_to_finding(
-                    vuln, pkg_name, pkg_ver, ecosystem, manifest_file
-                )
+                finding = _osv_vuln_to_finding(vuln, pkg_name, pkg_ver, ecosystem, manifest_file)
                 if finding:
                     findings.append(finding)
 
@@ -539,9 +546,20 @@ def _extract_fixed_version(
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _is_skipped_dir(path: Path) -> bool:
-    skip = {"node_modules", "vendor", ".git", "__pycache__", ".venv", "venv",
-            "dist", "build", ".tox", "site-packages"}
+    skip = {
+        "node_modules",
+        "vendor",
+        ".git",
+        "__pycache__",
+        ".venv",
+        "venv",
+        "dist",
+        "build",
+        ".tox",
+        "site-packages",
+    }
     return bool(skip.intersection(set(path.parts)))
 
 

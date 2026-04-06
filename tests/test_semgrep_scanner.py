@@ -1,11 +1,9 @@
 """Tests for Semgrep scanner wrapper."""
 
 import json
-import subprocess
-import pytest
 from unittest.mock import MagicMock, patch
 
-from vulnchain.analysis.semgrep_scanner import run_semgrep, _parse_semgrep_finding
+from vulnchain.analysis.semgrep_scanner import _parse_semgrep_finding, run_semgrep
 
 
 def _make_result(check_id, severity, path, line_start, line_end, message):

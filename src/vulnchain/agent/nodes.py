@@ -47,6 +47,7 @@ _MAX_CODE_CHARS = 12_000
 
 def _get_llm():
     from langchain_anthropic import ChatAnthropic
+
     settings = get_settings()
     return ChatAnthropic(
         model=settings.llm_model,
@@ -239,7 +240,7 @@ def _select_files_for_llm_review(state: ScanState) -> list[dict[str, Any]]:
         sf_by_path[fp] = sf
 
     # Also add high-risk files by name even if no findings yet
-    for fp, sf in sf_by_path.items():
+    for fp in sf_by_path:
         if _HIGH_RISK_PATTERNS.search(Path(fp).name) and fp not in file_score:
             file_score[fp] = 0.5  # low baseline score so they appear at bottom
 
@@ -249,13 +250,15 @@ def _select_files_for_llm_review(state: ScanState) -> list[dict[str, Any]]:
     results = []
     for fp, score in ranked:
         sf = sf_by_path.get(fp)
-        lang = (sf.language if sf and hasattr(sf, "language") else "unknown")
-        results.append({
-            "path": fp,
-            "language": lang,
-            "score": score,
-            "findings": file_findings.get(fp, []),
-        })
+        lang = sf.language if sf and hasattr(sf, "language") else "unknown"
+        results.append(
+            {
+                "path": fp,
+                "language": lang,
+                "score": score,
+                "findings": file_findings.get(fp, []),
+            }
+        )
     return results
 
 
@@ -314,9 +317,7 @@ def llm_code_review_node(state: ScanState) -> dict[str, Any]:
             logger.info("[llm_code_review] reviewing %s (score=%.1f)", fp, file_info["score"])
             try:
                 response = llm.invoke(prompt)
-                content = _extract_json(
-                    response.content if hasattr(response, "content") else str(response)
-                )
+                content = _extract_json(response.content if hasattr(response, "content") else str(response))
                 data = json.loads(content)
                 for finding in data.get("findings", []):
                     finding["file_path"] = fp
@@ -330,8 +331,11 @@ def llm_code_review_node(state: ScanState) -> dict[str, Any]:
                 logger.warning("[llm_code_review] failed for %s: %s", fp, exc)
                 continue
 
-        logger.info("[llm_code_review] found %d LLM findings across %d files",
-                    len(all_findings), len(files_to_review))
+        logger.info(
+            "[llm_code_review] found %d LLM findings across %d files",
+            len(all_findings),
+            len(files_to_review),
+        )
         return {"llm_review_findings": all_findings}
 
     except Exception as exc:
@@ -364,13 +368,11 @@ def _build_architecture_summary(state: ScanState) -> str:
     if dep_findings:
         crit_high = [f for f in dep_findings if f.severity in ("critical", "high")]
         lines.append("")
-        lines.append(f"=== Known Dependency CVEs ({len(dep_findings)} total, "
-                     f"{len(crit_high)} critical/high) ===")
+        lines.append(f"=== Known Dependency CVEs ({len(dep_findings)} total, {len(crit_high)} critical/high) ===")
         for f in sorted(dep_findings, key=lambda x: _SEV_ORDER.get(x.severity, 0), reverse=True)[:20]:
             fixed = f" (fixed in {f.fixed_version})" if f.fixed_version else " (no fix available)"
             lines.append(
-                f"  [{f.severity.upper()}] {f.cve_id} {f.package_name}@{f.installed_version}"
-                f"{fixed}: {f.title}"
+                f"  [{f.severity.upper()}] {f.cve_id} {f.package_name}@{f.installed_version}{fixed}: {f.title}"
             )
 
     lines += [
@@ -415,8 +417,8 @@ def _build_findings_summary(state: ScanState) -> str:
         lines.append(f"\nLLM direct code review findings ({len(llm_review)}):")
         for f in sorted(llm_review, key=lambda x: _SEV_ORDER.get(x.get("severity", "medium"), 1), reverse=True)[:20]:
             lines.append(
-                f"  [{f.get('severity','?').upper()}] {f.get('cwe_id','?')} "
-                f"{f.get('file_path','?')}:{f.get('line','?')} — {f.get('title','?')}"
+                f"  [{f.get('severity', '?').upper()}] {f.get('cwe_id', '?')} "
+                f"{f.get('file_path', '?')}:{f.get('line', '?')} — {f.get('title', '?')}"
             )
 
     if ai_segs:
@@ -436,13 +438,17 @@ def generate_threat_model_node(state: ScanState) -> dict[str, Any]:
             findings_summary=_build_findings_summary(state),
         )
         response = llm.invoke(prompt)
-        content = _extract_json(
-            response.content if hasattr(response, "content") else str(response)
-        )
+        content = _extract_json(response.content if hasattr(response, "content") else str(response))
         return {"threat_model": json.loads(content)}
     except json.JSONDecodeError as exc:
         logger.error("[generate_threat_model] LLM returned invalid JSON: %s", exc)
-        return {"threat_model": {"threat_model": [], "high_value_targets": [], "attack_surface_summary": ""}}
+        return {
+            "threat_model": {
+                "threat_model": [],
+                "high_value_targets": [],
+                "attack_surface_summary": "",
+            }
+        }
     except Exception as exc:
         logger.error("[generate_threat_model] failed: %s", exc)
         return {"threat_model": None, "error": str(exc)}
@@ -456,26 +462,42 @@ def synthesize_attack_chains_node(state: ScanState) -> dict[str, Any]:
         # Build unified findings list sorted by severity, cap at 100
         findings: list[dict] = []
         for f in _sort_findings_by_severity(state.get("semgrep_findings", [])):
-            findings.append({
-                "id": f.rule_id, "source": "semgrep", "severity": f.severity,
-                "file": f.file_path, "line": f.line_start, "message": f.message,
-            })
+            findings.append(
+                {
+                    "id": f.rule_id,
+                    "source": "semgrep",
+                    "severity": f.severity,
+                    "file": f.file_path,
+                    "line": f.line_start,
+                    "message": f.message,
+                }
+            )
         for f in _sort_findings_by_severity(state.get("joern_findings", [])):
-            findings.append({
-                "id": f.rule_id, "source": "joern", "severity": f.severity,
-                "file": f.file_path, "line": f.line, "message": f"CPG: {f.method_name}",
-            })
+            findings.append(
+                {
+                    "id": f.rule_id,
+                    "source": "joern",
+                    "severity": f.severity,
+                    "file": f.file_path,
+                    "line": f.line,
+                    "message": f"CPG: {f.method_name}",
+                }
+            )
         for f in sorted(
             state.get("llm_review_findings", []),
             key=lambda x: _SEV_ORDER.get(x.get("severity", "medium"), 1),
             reverse=True,
         ):
-            findings.append({
-                "id": f.get("cwe_id", "llm-review"), "source": "llm_review",
-                "severity": f.get("severity", "medium"),
-                "file": f.get("file_path", "?"), "line": f.get("line", 0),
-                "message": f.get("title", "?"),
-            })
+            findings.append(
+                {
+                    "id": f.get("cwe_id", "llm-review"),
+                    "source": "llm_review",
+                    "severity": f.get("severity", "medium"),
+                    "file": f.get("file_path", "?"),
+                    "line": f.get("line", 0),
+                    "message": f.get("title", "?"),
+                }
+            )
         # Include dependency CVEs — often chain with code-level findings
         for f in sorted(
             state.get("dependency_findings", []),
@@ -483,12 +505,16 @@ def synthesize_attack_chains_node(state: ScanState) -> dict[str, Any]:
             reverse=True,
         )[:20]:
             fixed = f" (fixed: {f.fixed_version})" if f.fixed_version else ""
-            findings.append({
-                "id": f.cve_id, "source": "dependency",
-                "severity": f.severity,
-                "file": f.manifest_file, "line": 0,
-                "message": f"{f.package_name}@{f.installed_version}: {f.title}{fixed}",
-            })
+            findings.append(
+                {
+                    "id": f.cve_id,
+                    "source": "dependency",
+                    "severity": f.severity,
+                    "file": f.manifest_file,
+                    "line": 0,
+                    "message": f"{f.package_name}@{f.installed_version}: {f.title}{fixed}",
+                }
+            )
 
         if len(findings) > 100:
             logger.info("[synthesize_attack_chains] capping findings at 100 (have %d)", len(findings))
@@ -499,12 +525,11 @@ def synthesize_attack_chains_node(state: ScanState) -> dict[str, Any]:
             threat_model_json=json.dumps(state.get("threat_model") or {}, indent=2),
         )
         response = llm.invoke(prompt)
-        content = _extract_json(
-            response.content if hasattr(response, "content") else str(response)
-        )
+        content = _extract_json(response.content if hasattr(response, "content") else str(response))
 
         chain_data = json.loads(content)
         from vulnchain.analysis.models import AttackChain
+
         chains = [
             AttackChain(
                 title=c.get("title", "Unnamed chain"),
@@ -531,6 +556,7 @@ def generate_report_node(state: ScanState) -> dict[str, Any]:
     logger.info("[generate_report] generating reports for scan %s", state["scan_id"])
     try:
         from vulnchain.reporting.formatter import generate_markdown, generate_sarif
+
         return {
             "report_markdown": generate_markdown(state),
             "report_sarif": generate_sarif(state),

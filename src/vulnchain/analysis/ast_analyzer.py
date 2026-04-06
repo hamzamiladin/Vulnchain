@@ -10,29 +10,64 @@ logger = logging.getLogger(__name__)
 
 try:
     import tree_sitter_language_pack as tslp
-    from tree_sitter import Node, Parser
+    from tree_sitter import Parser
+
     TREE_SITTER_AVAILABLE = True
 except ImportError:
     TREE_SITTER_AVAILABLE = False
 
-CSHARP_HTTP_ANNOTATIONS = frozenset([
-    "HttpGet", "HttpPost", "HttpPut", "HttpDelete", "HttpPatch", "Route",
-    "MapGet", "MapPost", "MapPut", "MapDelete",
-])
-CSHARP_AUTH_ANNOTATIONS = frozenset([
-    "Authorize", "AllowAnonymous", "RequireAuthorization",
-])
+CSHARP_HTTP_ANNOTATIONS = frozenset(
+    [
+        "HttpGet",
+        "HttpPost",
+        "HttpPut",
+        "HttpDelete",
+        "HttpPatch",
+        "Route",
+        "MapGet",
+        "MapPost",
+        "MapPut",
+        "MapDelete",
+    ]
+)
+CSHARP_AUTH_ANNOTATIONS = frozenset(
+    [
+        "Authorize",
+        "AllowAnonymous",
+        "RequireAuthorization",
+    ]
+)
 
-PYTHON_ROUTE_DECORATORS = frozenset([
-    "app.route", "router.get", "router.post", "router.put", "router.delete",
-    "router.patch", "app.get", "app.post", "app.put", "app.delete", "app.patch",
-    "bp.route", "blueprint.route",
-])
-PYTHON_AUTH_DECORATORS = frozenset([
-    "login_required", "requires_auth", "authenticate", "jwt_required",
-    "token_required", "permission_required", "require_permissions",
-    "security", "dependencies",
-])
+PYTHON_ROUTE_DECORATORS = frozenset(
+    [
+        "app.route",
+        "router.get",
+        "router.post",
+        "router.put",
+        "router.delete",
+        "router.patch",
+        "app.get",
+        "app.post",
+        "app.put",
+        "app.delete",
+        "app.patch",
+        "bp.route",
+        "blueprint.route",
+    ]
+)
+PYTHON_AUTH_DECORATORS = frozenset(
+    [
+        "login_required",
+        "requires_auth",
+        "authenticate",
+        "jwt_required",
+        "token_required",
+        "permission_required",
+        "require_permissions",
+        "security",
+        "dependencies",
+    ]
+)
 
 # PHP superglobal patterns that indicate HTTP request handling
 _PHP_REQUEST_RE = re.compile(
@@ -85,7 +120,7 @@ def _get_parser(language: str):
 
 
 def _node_text(node, source: bytes) -> str:
-    return source[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+    return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
 
 def _walk_dfs(node):
@@ -103,6 +138,7 @@ def _extract_annotation_arg(annotation_text: str) -> str:
 # ---------------------------------------------------------------------------
 # C# analysis
 # ---------------------------------------------------------------------------
+
 
 def _analyze_csharp(source: str, file_path: str) -> ASTResult:
     result = ASTResult(file_path=file_path, language="csharp")
@@ -145,15 +181,17 @@ def _analyze_csharp(source: str, file_path: str) -> ASTResult:
                         if pname:
                             params.append(_node_text(pname, src_bytes))
 
-            is_async = any(
-                _node_text(c, src_bytes) == "async"
-                for c in node.children if c.type == "modifier"
-            )
+            is_async = any(_node_text(c, src_bytes) == "async" for c in node.children if c.type == "modifier")
 
-            result.functions.append(FunctionDef(
-                name=func_name, start_line=start_line, end_line=end_line,
-                is_async=is_async, parameters=params,
-            ))
+            result.functions.append(
+                FunctionDef(
+                    name=func_name,
+                    start_line=start_line,
+                    end_line=end_line,
+                    is_async=is_async,
+                    parameters=params,
+                )
+            )
 
             ann_names = [a[0] for a in current_annotations]
             http_anns = [(n, t) for n, t in current_annotations if n in CSHARP_HTTP_ANNOTATIONS]
@@ -165,10 +203,15 @@ def _analyze_csharp(source: str, file_path: str) -> ASTResult:
                 route = _extract_annotation_arg(ann_text) or f"/{func_name}"
                 if not route.startswith("/"):
                     route = "/" + route
-                result.api_endpoints.append(APIEndpoint(
-                    method=method, route=route,
-                    handler_name=func_name, line=start_line, has_auth_decorator=has_auth,
-                ))
+                result.api_endpoints.append(
+                    APIEndpoint(
+                        method=method,
+                        route=route,
+                        handler_name=func_name,
+                        line=start_line,
+                        has_auth_decorator=has_auth,
+                    )
+                )
             current_annotations = []
 
         elif ntype == "class_declaration":
@@ -207,9 +250,14 @@ def _analyze_csharp_regex(source: str, file_path: str) -> ASTResult:
         elif m := method_re.match(line):
             func_name = m.group(2)
             is_async = "async" in line
-            result.functions.append(FunctionDef(
-                name=func_name, start_line=i, end_line=i, is_async=is_async,
-            ))
+            result.functions.append(
+                FunctionDef(
+                    name=func_name,
+                    start_line=i,
+                    end_line=i,
+                    is_async=is_async,
+                )
+            )
             ann_names = [a[0] for a in pending_annotations]
             http_anns = [(n, t) for n, t in pending_annotations if n in CSHARP_HTTP_ANNOTATIONS]
             if http_anns:
@@ -219,10 +267,15 @@ def _analyze_csharp_regex(source: str, file_path: str) -> ASTResult:
                 route = _extract_annotation_arg(ann_text) or f"/{func_name}"
                 if not route.startswith("/"):
                     route = "/" + route
-                result.api_endpoints.append(APIEndpoint(
-                    method=method, route=route,
-                    handler_name=func_name, line=i, has_auth_decorator=has_auth,
-                ))
+                result.api_endpoints.append(
+                    APIEndpoint(
+                        method=method,
+                        route=route,
+                        handler_name=func_name,
+                        line=i,
+                        has_auth_decorator=has_auth,
+                    )
+                )
             pending_annotations = []
         elif m := using_re.match(line):
             result.imports.append(m.group(1).strip())
@@ -235,6 +288,7 @@ def _analyze_csharp_regex(source: str, file_path: str) -> ASTResult:
 # ---------------------------------------------------------------------------
 # Python analysis
 # ---------------------------------------------------------------------------
+
 
 def _analyze_python(source: str, file_path: str) -> ASTResult:
     result = ASTResult(file_path=file_path, language="python")
@@ -268,10 +322,15 @@ def _analyze_python(source: str, file_path: str) -> ASTResult:
                     if p.type == "identifier":
                         params.append(_node_text(p, src_bytes))
 
-            result.functions.append(FunctionDef(
-                name=func_name, start_line=start_line, end_line=end_line,
-                is_async=is_async, parameters=params,
-            ))
+            result.functions.append(
+                FunctionDef(
+                    name=func_name,
+                    start_line=start_line,
+                    end_line=end_line,
+                    is_async=is_async,
+                    parameters=params,
+                )
+            )
 
             decorators = _collect_decorators_before(node, src_bytes)
             route_decs = [d for d in decorators if any(r in d for r in PYTHON_ROUTE_DECORATORS)]
@@ -288,10 +347,15 @@ def _analyze_python(source: str, file_path: str) -> ASTResult:
                     if rm:
                         route = rm.group(1)
                     break
-                result.api_endpoints.append(APIEndpoint(
-                    method=method, route=route, handler_name=func_name,
-                    line=start_line, has_auth_decorator=has_auth,
-                ))
+                result.api_endpoints.append(
+                    APIEndpoint(
+                        method=method,
+                        route=route,
+                        handler_name=func_name,
+                        line=start_line,
+                        has_auth_decorator=has_auth,
+                    )
+                )
 
         elif ntype == "class_definition":
             name_node = node.child_by_field_name("name")
@@ -338,9 +402,14 @@ def _analyze_python_regex(source: str, file_path: str) -> ASTResult:
         elif m := func_re.match(line):
             func_name = m.group(2)
             is_async = bool(m.group(1))
-            result.functions.append(FunctionDef(
-                name=func_name, start_line=i, end_line=i, is_async=is_async,
-            ))
+            result.functions.append(
+                FunctionDef(
+                    name=func_name,
+                    start_line=i,
+                    end_line=i,
+                    is_async=is_async,
+                )
+            )
             route_decs = [d for d in pending_decorators if any(r in d for r in PYTHON_ROUTE_DECORATORS)]
             if route_decs:
                 has_auth = any(a in d for a in PYTHON_AUTH_DECORATORS for d in pending_decorators)
@@ -355,10 +424,15 @@ def _analyze_python_regex(source: str, file_path: str) -> ASTResult:
                     if rm:
                         route = rm.group(1)
                     break
-                result.api_endpoints.append(APIEndpoint(
-                    method=method, route=route,
-                    handler_name=func_name, line=i, has_auth_decorator=has_auth,
-                ))
+                result.api_endpoints.append(
+                    APIEndpoint(
+                        method=method,
+                        route=route,
+                        handler_name=func_name,
+                        line=i,
+                        has_auth_decorator=has_auth,
+                    )
+                )
             pending_decorators = []
         elif m := import_re.match(line):
             result.imports.append(line.strip())
@@ -372,6 +446,7 @@ def _analyze_python_regex(source: str, file_path: str) -> ASTResult:
 # ---------------------------------------------------------------------------
 # PHP analysis
 # ---------------------------------------------------------------------------
+
 
 def _analyze_php(source: str, file_path: str) -> ASTResult:
     result = ASTResult(file_path=file_path, language="php")
@@ -389,26 +464,41 @@ def _analyze_php(source: str, file_path: str) -> ASTResult:
             result.class_names.append(m.group(1))
         elif m := func_re.match(line):
             func_name = m.group(1)
-            result.functions.append(FunctionDef(
-                name=func_name, start_line=i, end_line=i, is_async=False,
-            ))
+            result.functions.append(
+                FunctionDef(
+                    name=func_name,
+                    start_line=i,
+                    end_line=i,
+                    is_async=False,
+                )
+            )
             # Scan function body (next 30 lines) for $_GET/$_POST usage
-            body = "\n".join(lines[i:min(i + 30, len(lines))])
+            body = "\n".join(lines[i : min(i + 30, len(lines))])
             if _PHP_REQUEST_RE.search(body):
-                result.api_endpoints.append(APIEndpoint(
-                    method="ANY", route=f"/{func_name}",
-                    handler_name=func_name, line=i, has_auth_decorator=False,
-                ))
+                result.api_endpoints.append(
+                    APIEndpoint(
+                        method="ANY",
+                        route=f"/{func_name}",
+                        handler_name=func_name,
+                        line=i,
+                        has_auth_decorator=False,
+                    )
+                )
         elif m := require_re.match(line):
             result.imports.append(m.group(1))
 
     # Top-level PHP files that use $_GET/$_POST are themselves endpoints
     if _PHP_REQUEST_RE.search(source) and not result.api_endpoints:
         filename = file_path.split("/")[-1].replace(".php", "")
-        result.api_endpoints.append(APIEndpoint(
-            method="ANY", route=f"/{filename}",
-            handler_name=filename, line=1, has_auth_decorator=False,
-        ))
+        result.api_endpoints.append(
+            APIEndpoint(
+                method="ANY",
+                route=f"/{filename}",
+                handler_name=filename,
+                line=1,
+                has_auth_decorator=False,
+            )
+        )
 
     return result
 
@@ -417,6 +507,7 @@ def _analyze_php(source: str, file_path: str) -> ASTResult:
 # TypeScript / JavaScript analysis
 # ---------------------------------------------------------------------------
 
+
 def _analyze_typescript(source: str, file_path: str) -> ASTResult:
     result = ASTResult(file_path=file_path, language="typescript")
 
@@ -424,12 +515,16 @@ def _analyze_typescript(source: str, file_path: str) -> ASTResult:
     for m in _TS_ROUTE_RE.finditer(source):
         method = m.group(1).upper()
         route = m.group(2)
-        line = source[:m.start()].count("\n") + 1
-        result.api_endpoints.append(APIEndpoint(
-            method=method, route=route,
-            handler_name=route.strip("/").replace("/", "_") or "handler",
-            line=line, has_auth_decorator=False,
-        ))
+        line = source[: m.start()].count("\n") + 1
+        result.api_endpoints.append(
+            APIEndpoint(
+                method=method,
+                route=route,
+                handler_name=route.strip("/").replace("/", "_") or "handler",
+                line=line,
+                has_auth_decorator=False,
+            )
+        )
 
     # NestJS decorator-style routes
     lines = source.splitlines()
@@ -445,26 +540,32 @@ def _analyze_typescript(source: str, file_path: str) -> ASTResult:
         if pending_nest_route and re.search(r"(?:async\s+)?\w+\s*\(", line) and "=>" not in line:
             fm = re.search(r"(?:async\s+)?(\w+)\s*\(", line)
             if fm:
-                result.api_endpoints.append(APIEndpoint(
-                    method=pending_nest_route[0],
-                    route=pending_nest_route[1],
-                    handler_name=fm.group(1),
-                    line=i, has_auth_decorator=pending_has_auth,
-                ))
+                result.api_endpoints.append(
+                    APIEndpoint(
+                        method=pending_nest_route[0],
+                        route=pending_nest_route[1],
+                        handler_name=fm.group(1),
+                        line=i,
+                        has_auth_decorator=pending_has_auth,
+                    )
+                )
             pending_nest_route = None
             pending_has_auth = False
 
     # Extract function/const definitions
-    func_re = re.compile(
-        r"(?:async\s+)?(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\()"
-    )
+    func_re = re.compile(r"(?:async\s+)?(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\()")
     for m in func_re.finditer(source):
         name = m.group(1) or m.group(2)
         if name:
-            line = source[:m.start()].count("\n") + 1
-            result.functions.append(FunctionDef(
-                name=name, start_line=line, end_line=line, is_async="async" in source[max(0, m.start()-6):m.start()+6],
-            ))
+            line = source[: m.start()].count("\n") + 1
+            result.functions.append(
+                FunctionDef(
+                    name=name,
+                    start_line=line,
+                    end_line=line,
+                    is_async="async" in source[max(0, m.start() - 6) : m.start() + 6],
+                )
+            )
 
     # Extract class names
     for m in re.finditer(r"(?:export\s+)?(?:abstract\s+)?class\s+(\w+)", source):
@@ -480,6 +581,7 @@ def _analyze_typescript(source: str, file_path: str) -> ASTResult:
 # ---------------------------------------------------------------------------
 # Java analysis
 # ---------------------------------------------------------------------------
+
 
 def _analyze_java(source: str, file_path: str) -> ASTResult:
     result = ASTResult(file_path=file_path, language="java")
@@ -500,16 +602,24 @@ def _analyze_java(source: str, file_path: str) -> ASTResult:
 
         if m := _JAVA_METHOD_RE.search(line):
             func_name = m.group(1)
-            result.functions.append(FunctionDef(
-                name=func_name, start_line=i, end_line=i, is_async=False,
-            ))
+            result.functions.append(
+                FunctionDef(
+                    name=func_name,
+                    start_line=i,
+                    end_line=i,
+                    is_async=False,
+                )
+            )
             if pending_route:
-                result.api_endpoints.append(APIEndpoint(
-                    method=pending_route[0],
-                    route=pending_route[1] or f"/{func_name}",
-                    handler_name=func_name,
-                    line=i, has_auth_decorator=pending_has_auth,
-                ))
+                result.api_endpoints.append(
+                    APIEndpoint(
+                        method=pending_route[0],
+                        route=pending_route[1] or f"/{func_name}",
+                        handler_name=func_name,
+                        line=i,
+                        has_auth_decorator=pending_has_auth,
+                    )
+                )
                 pending_route = None
                 pending_has_auth = False
 
@@ -543,9 +653,14 @@ def _analyze_generic_regex(source: str, file_path: str, language: str) -> ASTRes
     func_re = re.compile(r"(?:func|function|def|fn)\s+(\w+)\s*\(")
     for i, line in enumerate(source.splitlines(), 1):
         if m := func_re.search(line):
-            result.functions.append(FunctionDef(
-                name=m.group(1), start_line=i, end_line=i, is_async=False,
-            ))
+            result.functions.append(
+                FunctionDef(
+                    name=m.group(1),
+                    start_line=i,
+                    end_line=i,
+                    is_async=False,
+                )
+            )
     return result
 
 
@@ -571,6 +686,8 @@ def analyze_files(source_files: list[SourceFile]) -> list[ASTResult]:
         results.append(result)
         logger.debug(
             "Analyzed %s: %d functions, %d endpoints",
-            sf.relative_path, len(result.functions), len(result.api_endpoints),
+            sf.relative_path,
+            len(result.functions),
+            len(result.api_endpoints),
         )
     return results

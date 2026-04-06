@@ -1,9 +1,11 @@
 """Tests for report formatter."""
 
 import json
+
 import pytest
+
+from vulnchain.analysis.models import ThreatModel
 from vulnchain.reporting.formatter import generate_markdown, generate_sarif
-from vulnchain.analysis.models import SemgrepFinding, AttackChain, ThreatModel
 
 
 @pytest.fixture

@@ -19,8 +19,8 @@ class FunctionDef:
 class APIEndpoint:
     """Represents an API endpoint detected in source code."""
 
-    method: str        # GET, POST, PUT, DELETE, etc.
-    route: str         # URL pattern
+    method: str  # GET, POST, PUT, DELETE, etc.
+    route: str  # URL pattern
     handler_name: str
     line: int
     has_auth_decorator: bool
@@ -60,7 +60,7 @@ class AICodeSegment:
     file_path: str
     line_start: int
     line_end: int
-    confidence: float     # 0.0–1.0
+    confidence: float  # 0.0–1.0
     signals: list[str] = field(default_factory=list)
 
 
@@ -73,7 +73,7 @@ class JoernFinding:
     file_path: str
     line: int
     method_name: str
-    script: str           # which .sc script produced this
+    script: str  # which .sc script produced this
     raw: dict[str, Any] = field(default_factory=dict)
 
 

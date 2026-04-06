@@ -1,10 +1,9 @@
 """Async database connection management using asyncpg."""
 
-import logging
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
-
 import json
+import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 import asyncpg
 

@@ -16,19 +16,19 @@ logger = logging.getLogger(__name__)
 SCRIPTS_DIR = Path(__file__).parent.parent / "joern_scripts"
 
 _SCRIPT_RULE_MAP = {
-    "tainted_sql.sc":              "tainted-sql-injection",
-    "missing_auth.sc":             "missing-authorization",
-    "data_leak.sc":                "sensitive-data-in-logs",
-    "command_injection.sc":        "tainted-command-injection",
-    "path_traversal.sc":           "tainted-path-traversal",
-    "ssrf.sc":                     "tainted-ssrf",
+    "tainted_sql.sc": "tainted-sql-injection",
+    "missing_auth.sc": "missing-authorization",
+    "data_leak.sc": "sensitive-data-in-logs",
+    "command_injection.sc": "tainted-command-injection",
+    "path_traversal.sc": "tainted-path-traversal",
+    "ssrf.sc": "tainted-ssrf",
     "insecure_deserialization.sc": "insecure-deserialization",
-    "xxe_injection.sc":            "xxe-injection",
-    "open_redirect.sc":            "open-redirect",
-    "ldap_injection.sc":           "ldap-injection",
-    "template_injection.sc":       "template-injection-ssti",
-    "prototype_pollution.sc":      "prototype-pollution",
-    "jwt_algorithm_confusion.sc":  "jwt-algorithm-confusion",
+    "xxe_injection.sc": "xxe-injection",
+    "open_redirect.sc": "open-redirect",
+    "ldap_injection.sc": "ldap-injection",
+    "template_injection.sc": "template-injection-ssti",
+    "prototype_pollution.sc": "prototype-pollution",
+    "jwt_algorithm_confusion.sc": "jwt-algorithm-confusion",
 }
 
 _JAVA_ENV = {
@@ -49,7 +49,8 @@ def _build_cpg(repo_path: str, cpg_path: str, workspace_dir: str) -> bool:
             [
                 "joern-parse",
                 repo_path,
-                "--output", cpg_path,
+                "--output",
+                cpg_path,
             ],
             capture_output=True,
             text=True,
@@ -67,7 +68,8 @@ def _build_cpg(repo_path: str, cpg_path: str, workspace_dir: str) -> bool:
     if result.returncode != 0:
         logger.warning(
             "joern-parse exited %d: %s",
-            result.returncode, (result.stderr or result.stdout)[:500],
+            result.returncode,
+            (result.stderr or result.stdout)[:500],
         )
         return False
 
@@ -102,9 +104,12 @@ def _run_script_on_cpg(
         result = subprocess.run(
             [
                 "joern",
-                "--script", str(script_path),
-                "--param", f"cpgFile={cpg_path}",
-                "--param", f"outputFile={out_path}",
+                "--script",
+                str(script_path),
+                "--param",
+                f"cpgFile={cpg_path}",
+                "--param",
+                f"outputFile={out_path}",
             ],
             capture_output=True,
             text=True,
@@ -113,23 +118,25 @@ def _run_script_on_cpg(
             env=_JAVA_ENV,
         )
 
+        import contextlib
         out = ""
-        try:
+        with contextlib.suppress(OSError):
             out = Path(out_path).read_text(encoding="utf-8").strip()
-        except OSError:
-            pass
 
         if result.returncode not in (0, 1) or (result.returncode != 0 and not out):
             logger.warning(
                 "Joern exited %d for %s: %s",
-                result.returncode, script_name, (result.stderr or result.stdout)[:500],
+                result.returncode,
+                script_name,
+                (result.stderr or result.stdout)[:500],
             )
             return []
 
         if result.returncode != 0:
             logger.info(
                 "Joern exited %d for %s but wrote output — parsing",
-                result.returncode, script_name,
+                result.returncode,
+                script_name,
             )
 
         if not out:
@@ -167,21 +174,24 @@ def run_all_joern_queries(repo_path: str) -> list[JoernFinding]:
         for script_name, rule_id in _SCRIPT_RULE_MAP.items():
             for raw in _run_script_on_cpg(script_name, cpg_path, workspace_dir):
                 try:
-                    all_findings.append(JoernFinding(
-                        rule_id=rule_id,
-                        severity=raw.get("severity", "high"),
-                        file_path=raw.get("file", "unknown"),
-                        line=raw.get("line", 0),
-                        method_name=raw.get("method", "unknown"),
-                        script=script_name,
-                        raw=raw,
-                    ))
+                    all_findings.append(
+                        JoernFinding(
+                            rule_id=rule_id,
+                            severity=raw.get("severity", "high"),
+                            file_path=raw.get("file", "unknown"),
+                            line=raw.get("line", 0),
+                            method_name=raw.get("method", "unknown"),
+                            script=script_name,
+                            raw=raw,
+                        )
+                    )
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("Failed to parse Joern finding: %s", exc)
 
         logger.info(
             "Joern found %d findings across %d scripts",
-            len(all_findings), len(_SCRIPT_RULE_MAP),
+            len(all_findings),
+            len(_SCRIPT_RULE_MAP),
         )
         return all_findings
 

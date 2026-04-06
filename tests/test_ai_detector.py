@@ -1,20 +1,19 @@
 """Tests for AI-generated code detector."""
 
-import pytest
 from vulnchain.analysis.ai_code_detector import (
-    detect_ai_code,
-    _score_commit_signals,
-    _score_code_patterns,
-    _score_method_validity,
-    _score_security_antipatterns,
-    _score_comment_density,
-    _score_placeholder_strings,
     MIN_CONFIDENCE,
+    _score_code_patterns,
+    _score_comment_density,
+    _score_commit_signals,
+    _score_method_validity,
+    _score_placeholder_strings,
+    _score_security_antipatterns,
+    detect_ai_code,
 )
-from vulnchain.ingestion.models import SourceFile, CommitInfo
-
+from vulnchain.ingestion.models import CommitInfo, SourceFile
 
 # ── commit signal tests ───────────────────────────────────────────────────────
+
 
 def test_ai_commit_signal_raises_score(python_source_file, ai_commit):
     score, signals = _score_commit_signals(python_source_file.relative_path, [ai_commit])
@@ -58,6 +57,7 @@ def test_cursor_attribution_detected():
 
 # ── code pattern tests ────────────────────────────────────────────────────────
 
+
 def test_todo_placeholder_detected():
     content = "# TODO: add error handling\ndef foo(): pass"
     score, signals = _score_code_patterns(content, "x.py")
@@ -85,6 +85,7 @@ def test_over_comment_detected():
 
 
 # ── security antipattern tests ────────────────────────────────────────────────
+
 
 def test_ssl_verify_false_detected():
     content = "resp = requests.get(url, verify=False)\n"
@@ -122,9 +123,7 @@ def test_insecure_skip_verify_tls():
 
 def test_no_antipatterns_clean_code():
     content = (
-        "import bcrypt\n"
-        "hashed = bcrypt.hashpw(password, bcrypt.gensalt())\n"
-        "resp = requests.get(url, verify=True)\n"
+        "import bcrypt\nhashed = bcrypt.hashpw(password, bcrypt.gensalt())\nresp = requests.get(url, verify=True)\n"
     )
     score, signals = _score_security_antipatterns(content)
     assert score == 0.0
@@ -133,11 +132,10 @@ def test_no_antipatterns_clean_code():
 
 # ── comment density tests ─────────────────────────────────────────────────────
 
+
 def test_high_comment_density_detected():
     # 10 comment lines, 5 code lines = 66% — very high
-    content = "\n".join(
-        ["# This is a comment describing line"] * 10 + ["x = 1", "y = 2", "z = 3", "w = 4", "v = 5"]
-    )
+    content = "\n".join(["# This is a comment describing line"] * 10 + ["x = 1", "y = 2", "z = 3", "w = 4", "v = 5"])
     score, signals = _score_comment_density(content, "python")
     assert score > 0
     assert any("comment" in s.lower() or "density" in s.lower() for s in signals)
@@ -145,9 +143,7 @@ def test_high_comment_density_detected():
 
 def test_normal_comment_density_no_flag():
     # 2 comments, 20 code lines = 9% — normal
-    content = "\n".join(
-        ["# Setup", "x = 1"] + ["y = %d" % i for i in range(20)]
-    )
+    content = "\n".join(["# Setup", "x = 1"] + [f"y = {i}" for i in range(20)])
     score, signals = _score_comment_density(content, "python")
     assert score == 0.0
 
@@ -166,29 +162,22 @@ def test_unsupported_language_skipped():
 
 # ── placeholder string tests ──────────────────────────────────────────────────
 
+
 def test_placeholder_strings_detected():
-    content = (
-        'BASE_URL = "example.com"\n'
-        'host = "localhost"\n'
-        'db = "dummy_data"\n'
-        'user = "foo"\n'
-    )
+    content = 'BASE_URL = "example.com"\nhost = "localhost"\ndb = "dummy_data"\nuser = "foo"\n'
     score, signals = _score_placeholder_strings(content)
     assert score > 0
     assert any("placeholder" in s.lower() for s in signals)
 
 
 def test_real_values_not_flagged():
-    content = (
-        'BASE_URL = "api.myservice.com"\n'
-        'TIMEOUT = 30\n'
-        'MAX_RETRIES = 3\n'
-    )
+    content = 'BASE_URL = "api.myservice.com"\nTIMEOUT = 30\nMAX_RETRIES = 3\n'
     score, signals = _score_placeholder_strings(content)
     assert score == 0.0
 
 
 # ── method validity tests ─────────────────────────────────────────────────────
+
 
 def test_phantom_methods_raise_validity_score():
     content = """\
@@ -220,6 +209,7 @@ def process(items):
 
 # ── integration tests ─────────────────────────────────────────────────────────
 
+
 def test_detect_ai_code_returns_high_confidence_file(python_source_file, ai_commit):
     segments = detect_ai_code([python_source_file], [ai_commit])
     assert len(segments) >= 1
@@ -237,7 +227,8 @@ def test_detect_ai_code_sorted_descending():
                 "# TODO: implement this\n"
                 "resp = requests.get(url, verify=False)\n"
                 'SECRET = "your-secret-key"\n'
-            ) * 3,
+            )
+            * 3,
             language="python",
             size_bytes=400,
         ),

@@ -4,7 +4,6 @@ import asyncio
 import logging
 import uuid
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -30,10 +29,10 @@ def _setup_logging(level: str = "INFO") -> None:
 @app.command("scan")
 def cmd_scan(
     target: str = typer.Argument(..., help="Repository URL or local path to scan"),
-    output: Optional[Path] = typer.Option(None, "--output", "-o"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
     local: bool = typer.Option(False, "--local"),
-    pr_number: Optional[int] = typer.Option(None, "--pr"),
-    pr_sha: Optional[str] = typer.Option(None, "--sha"),
+    pr_number: int | None = typer.Option(None, "--pr"),
+    pr_sha: str | None = typer.Option(None, "--sha"),
     log_level: str = typer.Option("INFO", "--log-level"),
 ) -> None:
     """Scan a repository for security vulnerabilities."""
@@ -43,17 +42,31 @@ def cmd_scan(
 
     async def _run() -> None:
         from vulnchain.agent.graph import build_graph
+
         graph = build_graph()
         initial_state = {
-            "repo_url": target, "pr_number": pr_number, "commit_sha": pr_sha,
-            "scan_id": scan_id, "is_local": local, "repo_path": "",
-            "source_files": [], "commit_history": [], "ast_results": [],
-            "semgrep_findings": [], "ai_code_segments": [], "joern_findings": [],
-            "threat_model": None, "attack_chains": [],
-            "report_markdown": "", "report_sarif": {}, "error": None,
+            "repo_url": target,
+            "pr_number": pr_number,
+            "commit_sha": pr_sha,
+            "scan_id": scan_id,
+            "is_local": local,
+            "repo_path": "",
+            "source_files": [],
+            "commit_history": [],
+            "ast_results": [],
+            "semgrep_findings": [],
+            "ai_code_segments": [],
+            "joern_findings": [],
+            "threat_model": None,
+            "attack_chains": [],
+            "report_markdown": "",
+            "report_sarif": {},
+            "error": None,
         }
 
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+        with Progress(
+            SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
+        ) as progress:
             task = progress.add_task("Running scan pipeline...", total=None)
             final_state = await graph.ainvoke(initial_state)
             progress.update(task, description="Scan complete.")
@@ -88,6 +101,7 @@ def cmd_results(scan_id: str = typer.Argument(...)) -> None:
 
     async def _run() -> None:
         from vulnchain.db.connection import get_conn
+
         async with get_conn() as conn:
             scan = await conn.fetchrow("SELECT * FROM scans WHERE id = $1", scan_id)
             if not scan:
@@ -98,10 +112,12 @@ def cmd_results(scan_id: str = typer.Argument(...)) -> None:
             )
             chains = await conn.fetch("SELECT * FROM attack_chains WHERE scan_id = $1", scan_id)
 
-        console.print(Panel(
-            f"[bold]Scan {scan_id}[/bold]\nStatus: {scan['status']}\n"
-            f"Repo: {scan['repo_url']}\nFindings: {len(findings)}\nChains: {len(chains)}"
-        ))
+        console.print(
+            Panel(
+                f"[bold]Scan {scan_id}[/bold]\nStatus: {scan['status']}\n"
+                f"Repo: {scan['repo_url']}\nFindings: {len(findings)}\nChains: {len(chains)}"
+            )
+        )
 
         if findings:
             table = Table(title="Findings")
@@ -112,7 +128,9 @@ def cmd_results(scan_id: str = typer.Argument(...)) -> None:
             table.add_column("Message")
             for f in findings:
                 table.add_row(
-                    f["severity"], f["source"], f["rule_id"],
+                    f["severity"],
+                    f["source"],
+                    f["rule_id"],
                     f"{f['file_path']}:{f['line_start'] or ''}",
                     f["message"][:80],
                 )
@@ -128,6 +146,7 @@ def cmd_list(limit: int = typer.Option(10, "--limit", "-n")) -> None:
 
     async def _run() -> None:
         from vulnchain.db.connection import get_conn
+
         async with get_conn() as conn:
             rows = await conn.fetch(
                 "SELECT id, repo_name, status, created_at, "
@@ -143,8 +162,11 @@ def cmd_list(limit: int = typer.Option(10, "--limit", "-n")) -> None:
         table.add_column("Created")
         for row in rows:
             table.add_row(
-                str(row["id"])[:8] + "...", row["repo_name"], row["status"],
-                str(row["finding_count"]), str(row["created_at"]),
+                str(row["id"])[:8] + "...",
+                row["repo_name"],
+                row["status"],
+                str(row["finding_count"]),
+                str(row["created_at"]),
             )
         console.print(table)
 
@@ -160,7 +182,9 @@ def cmd_serve(
     """Start the FastAPI REST API server."""
     _setup_logging()
     import uvicorn
+
     from vulnchain.api.app import create_app
+
     console.print(f"[green]Starting RedTeam API server on {host}:{port}[/green]")
     uvicorn.run(create_app(), host=host, port=port, reload=reload)
 

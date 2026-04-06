@@ -136,49 +136,177 @@ _PLACEHOLDER_LITERAL_RE = re.compile(
 # ── Comment-density helpers ───────────────────────────────────────────────────
 
 _COMMENT_PATTERNS: dict[str, re.Pattern] = {
-    "python":     re.compile(r"^\s*#"),
+    "python": re.compile(r"^\s*#"),
     "javascript": re.compile(r"^\s*(?://|/\*)"),
     "typescript": re.compile(r"^\s*(?://|/\*)"),
-    "java":       re.compile(r"^\s*(?://|/\*)"),
-    "csharp":     re.compile(r"^\s*(?://|/\*)"),
-    "go":         re.compile(r"^\s*//"),
-    "rust":       re.compile(r"^\s*//"),
-    "php":        re.compile(r"^\s*(?://|#|/\*)"),
-    "swift":      re.compile(r"^\s*(?://|/\*)"),
-    "kotlin":     re.compile(r"^\s*(?://|/\*)"),
-    "ruby":       re.compile(r"^\s*#"),
+    "java": re.compile(r"^\s*(?://|/\*)"),
+    "csharp": re.compile(r"^\s*(?://|/\*)"),
+    "go": re.compile(r"^\s*//"),
+    "rust": re.compile(r"^\s*//"),
+    "php": re.compile(r"^\s*(?://|#|/\*)"),
+    "swift": re.compile(r"^\s*(?://|/\*)"),
+    "kotlin": re.compile(r"^\s*(?://|/\*)"),
+    "ruby": re.compile(r"^\s*#"),
 }
 
 # ── Stdlib method whitelist ───────────────────────────────────────────────────
 
-_STDLIB: frozenset[str] = frozenset([
-    "append", "extend", "get", "set", "add", "remove", "split", "join", "strip",
-    "replace", "format", "encode", "decode", "read", "write", "close", "open",
-    "print", "log", "info", "warning", "error", "debug", "upper", "lower",
-    "startswith", "endswith", "keys", "values", "items", "update", "pop",
-    "insert", "sort", "filter", "map", "any", "all", "len", "str", "int",
-    "float", "list", "dict", "tuple", "type", "isinstance", "hasattr", "getattr",
-    "setattr", "delattr", "isinstance", "issubclass", "callable", "iter",
-    "next", "enumerate", "zip", "reversed", "sorted", "sum", "min", "max",
-    "abs", "round", "hash", "id", "repr", "vars", "dir", "input", "output",
-    "flush", "seek", "tell", "readline", "readlines", "writelines", "truncate",
-    "connect", "execute", "fetchone", "fetchall", "fetchmany", "commit",
-    "rollback", "cursor", "bind", "listen", "accept", "recv", "send",
-    "sendall", "shutdown", "getsockname", "getpeername", "settimeout",
-    "copy", "deepcopy", "dumps", "loads", "dump", "load",
-    "match", "search", "findall", "finditer", "sub", "subn", "compile",
-    "raise", "assert", "return", "yield", "raise_for_status", "json",
-    "text", "content", "status_code", "headers", "cookies",
-    "run", "start", "stop", "reset", "init", "setup", "teardown",
-    "configure", "verify", "validate", "sanitize", "escape", "unescape",
-    "serialize", "deserialize", "encode", "decode", "compress", "decompress",
-    "render", "redirect", "abort", "flash", "send_file", "make_response",
-])
+_STDLIB: frozenset[str] = frozenset(
+    [
+        "append",
+        "extend",
+        "get",
+        "set",
+        "add",
+        "remove",
+        "split",
+        "join",
+        "strip",
+        "replace",
+        "format",
+        "encode",
+        "decode",
+        "read",
+        "write",
+        "close",
+        "open",
+        "print",
+        "log",
+        "info",
+        "warning",
+        "error",
+        "debug",
+        "upper",
+        "lower",
+        "startswith",
+        "endswith",
+        "keys",
+        "values",
+        "items",
+        "update",
+        "pop",
+        "insert",
+        "sort",
+        "filter",
+        "map",
+        "any",
+        "all",
+        "len",
+        "str",
+        "int",
+        "float",
+        "list",
+        "dict",
+        "tuple",
+        "type",
+        "isinstance",
+        "hasattr",
+        "getattr",
+        "setattr",
+        "delattr",
+        "isinstance",
+        "issubclass",
+        "callable",
+        "iter",
+        "next",
+        "enumerate",
+        "zip",
+        "reversed",
+        "sorted",
+        "sum",
+        "min",
+        "max",
+        "abs",
+        "round",
+        "hash",
+        "id",
+        "repr",
+        "vars",
+        "dir",
+        "input",
+        "output",
+        "flush",
+        "seek",
+        "tell",
+        "readline",
+        "readlines",
+        "writelines",
+        "truncate",
+        "connect",
+        "execute",
+        "fetchone",
+        "fetchall",
+        "fetchmany",
+        "commit",
+        "rollback",
+        "cursor",
+        "bind",
+        "listen",
+        "accept",
+        "recv",
+        "send",
+        "sendall",
+        "shutdown",
+        "getsockname",
+        "getpeername",
+        "settimeout",
+        "copy",
+        "deepcopy",
+        "dumps",
+        "loads",
+        "dump",
+        "load",
+        "match",
+        "search",
+        "findall",
+        "finditer",
+        "sub",
+        "subn",
+        "compile",
+        "raise",
+        "assert",
+        "return",
+        "yield",
+        "raise_for_status",
+        "json",
+        "text",
+        "content",
+        "status_code",
+        "headers",
+        "cookies",
+        "run",
+        "start",
+        "stop",
+        "reset",
+        "init",
+        "setup",
+        "teardown",
+        "configure",
+        "verify",
+        "validate",
+        "sanitize",
+        "escape",
+        "unescape",
+        "serialize",
+        "deserialize",
+        "encode",
+        "decode",
+        "compress",
+        "decompress",
+        "render",
+        "redirect",
+        "abort",
+        "flash",
+        "send_file",
+        "make_response",
+    ]
+)
 
 MIN_CONFIDENCE = 0.35
 
 
 # ── Individual scorers ────────────────────────────────────────────────────────
+
 
 def _score_commit_signals(file_path: str, commits: list[CommitInfo]) -> tuple[float, list[str]]:
     """Score based on git commit metadata indicating AI authorship."""
@@ -195,8 +323,7 @@ def _score_commit_signals(file_path: str, commits: list[CommitInfo]) -> tuple[fl
             score += 0.55
 
         # Large atomic addition — AI generates whole files at once
-        if (commit.additions > _LARGE_ATOMIC_THRESHOLD
-                and len(commit.files_changed) <= _LARGE_ATOMIC_FILE_LIMIT):
+        if commit.additions > _LARGE_ATOMIC_THRESHOLD and len(commit.files_changed) <= _LARGE_ATOMIC_FILE_LIMIT:
             signals.append(
                 f"Commit {commit.sha[:8]}: large atomic addition "
                 f"({commit.additions}+ lines in {len(commit.files_changed)} file(s))"
@@ -206,8 +333,7 @@ def _score_commit_signals(file_path: str, commits: list[CommitInfo]) -> tuple[fl
         # Very large addition with no deletions — typical of pasting AI output
         if commit.additions > 150 and commit.deletions == 0:
             signals.append(
-                f"Commit {commit.sha[:8]}: {commit.additions} additions, 0 deletions "
-                f"(full AI-generated dump pattern)"
+                f"Commit {commit.sha[:8]}: {commit.additions} additions, 0 deletions (full AI-generated dump pattern)"
             )
             score += 0.20
 
@@ -236,10 +362,7 @@ def _score_code_patterns(content: str, file_path: str) -> tuple[float, list[str]
     # Generic variable names at high density
     generic_count = sum(1 for ln in lines if _GENERIC_VAR_RE.search(ln))
     if generic_count / total > 0.07:
-        signals.append(
-            f"High generic variable density ({generic_count}/{total} lines = "
-            f"{generic_count/total:.0%})"
-        )
+        signals.append(f"High generic variable density ({generic_count}/{total} lines = {generic_count / total:.0%})")
         score += 0.18
 
     # Over-explanatory comments (AI narrates what code does step-by-step)
@@ -274,10 +397,12 @@ def _score_code_patterns(content: str, file_path: str) -> tuple[float, list[str]
     if len(non_blank) >= 30:
         mean_len = sum(non_blank) / len(non_blank)
         if mean_len > 1:
-            std_len = (sum((l - mean_len) ** 2 for l in non_blank) / len(non_blank)) ** 0.5
+            std_len = (sum((ln - mean_len) ** 2 for ln in non_blank) / len(non_blank)) ** 0.5
             cv = std_len / mean_len
             if cv < 0.35:
-                signals.append(f"Low line-length variance (CV={cv:.2f}) — uniformly structured, characteristic of AI generation")
+                signals.append(
+                    f"Low line-length variance (CV={cv:.2f}) — uniformly structured, characteristic of AI generation"
+                )
                 score += 0.25
             elif cv < 0.45:
                 signals.append(f"Below-average line-length variance (CV={cv:.2f})")
@@ -356,13 +481,10 @@ def _score_comment_density(content: str, language: str) -> tuple[float, list[str
 
     if ratio >= 0.30:
         return 0.7, [
-            f"Very high comment density: {comment_lines}/{total} lines ({ratio:.0%}) "
-            f"— AI tools over-document code"
+            f"Very high comment density: {comment_lines}/{total} lines ({ratio:.0%}) — AI tools over-document code"
         ]
     if ratio >= 0.20:
-        return 0.35, [
-            f"Elevated comment density: {comment_lines}/{total} lines ({ratio:.0%})"
-        ]
+        return 0.35, [f"Elevated comment density: {comment_lines}/{total} lines ({ratio:.0%})"]
     return 0.0, []
 
 
@@ -430,16 +552,14 @@ def _score_method_validity(content: str, language: str) -> tuple[float, list[str
     phantom = called - defined - imported
     # Use a higher threshold (5+) to reduce cross-module false positives
     if len(phantom) > 5:
-        signals.append(
-            f"{len(phantom)} calls to potentially undefined methods: "
-            + ", ".join(sorted(phantom)[:6])
-        )
+        signals.append(f"{len(phantom)} calls to potentially undefined methods: " + ", ".join(sorted(phantom)[:6]))
         score += 0.20
 
     return min(score, 1.0), signals
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
+
 
 def detect_ai_code(
     source_files: list[SourceFile],
@@ -485,16 +605,20 @@ def detect_ai_code(
 
         if final_score >= MIN_CONFIDENCE:
             line_count = sf.content.count("\n") + 1
-            segments.append(AICodeSegment(
-                file_path=sf.relative_path,
-                line_start=1,
-                line_end=line_count,
-                confidence=round(final_score, 3),
-                signals=all_signals,
-            ))
+            segments.append(
+                AICodeSegment(
+                    file_path=sf.relative_path,
+                    line_start=1,
+                    line_end=line_count,
+                    confidence=round(final_score, 3),
+                    signals=all_signals,
+                )
+            )
             logger.debug(
                 "AI code detected in %s (confidence=%.2f, signals=%d)",
-                sf.relative_path, final_score, len(all_signals),
+                sf.relative_path,
+                final_score,
+                len(all_signals),
             )
 
     segments.sort(key=lambda s: s.confidence, reverse=True)

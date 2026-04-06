@@ -1,10 +1,11 @@
 """Tests for LangGraph agent graph."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
-from vulnchain.agent.state import ScanState
+import pytest
+
 from vulnchain.agent.graph import build_graph
+from vulnchain.agent.state import ScanState
 
 
 @pytest.fixture
@@ -36,9 +37,16 @@ def test_build_graph_compiles():
 
 def test_state_has_required_keys(minimal_state):
     required = [
-        "scan_id", "repo_url", "commit_sha", "source_files",
-        "semgrep_findings", "joern_findings", "ai_code_segments",
-        "attack_chains", "report_markdown", "report_sarif",
+        "scan_id",
+        "repo_url",
+        "commit_sha",
+        "source_files",
+        "semgrep_findings",
+        "joern_findings",
+        "ai_code_segments",
+        "attack_chains",
+        "report_markdown",
+        "report_sarif",
     ]
     for key in required:
         assert key in minimal_state, f"Missing key: {key}"
@@ -51,9 +59,7 @@ def test_state_error_initially_none(minimal_state):
 @patch("vulnchain.agent.nodes.clone_or_open_repo")
 @patch("vulnchain.agent.nodes.collect_source_files")
 @patch("vulnchain.agent.nodes.collect_commit_history")
-def test_clone_repo_node_sets_source_files(
-    mock_commits, mock_files, mock_clone, minimal_state
-):
+def test_clone_repo_node_sets_source_files(mock_commits, mock_files, mock_clone, minimal_state):
     from vulnchain.agent.nodes import clone_repo_node
 
     mock_clone.return_value = "/tmp/fake-repo"
@@ -61,8 +67,7 @@ def test_clone_repo_node_sets_source_files(
     mock_commits.return_value = []
 
     import asyncio
-    result = asyncio.get_event_loop().run_until_complete(
-        clone_repo_node(minimal_state)
-    )
+
+    result = asyncio.get_event_loop().run_until_complete(clone_repo_node(minimal_state))
     assert "source_files" in result
     assert "commits" in result

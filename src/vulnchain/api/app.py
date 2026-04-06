@@ -5,8 +5,8 @@ import json
 import logging
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -113,6 +113,7 @@ _EVOLVE_STMTS = [
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     from vulnchain.db.connection import close_pool, get_conn
+
     async with get_conn() as conn:
         for stmt in _CREATE_STMTS:
             await conn.execute(stmt)
@@ -145,6 +146,7 @@ def create_app() -> FastAPI:
         page_size: int = Query(20, ge=1, le=100),
     ) -> dict[str, Any]:
         from vulnchain.db.connection import get_conn
+
         offset = (page - 1) * page_size
         async with get_conn() as conn:
             total = await conn.fetchval("SELECT COUNT(*) FROM scans")
@@ -159,13 +161,20 @@ def create_app() -> FastAPI:
                 LEFT JOIN attack_chains ac ON ac.scan_id = s.id
                 GROUP BY s.id ORDER BY s.created_at DESC LIMIT $1 OFFSET $2
                 """,
-                page_size, offset,
+                page_size,
+                offset,
             )
-        return {"total": total, "page": page, "page_size": page_size, "scans": [dict(r) for r in rows]}
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "scans": [dict(r) for r in rows],
+        }
 
     @api.get("/api/scans/{scan_id}")
     async def get_scan(scan_id: str) -> dict[str, Any]:
         from vulnchain.db.connection import get_conn
+
         async with get_conn() as conn:
             scan = await conn.fetchrow("SELECT * FROM scans WHERE id = $1", scan_id)
             if not scan:
@@ -176,11 +185,16 @@ def create_app() -> FastAPI:
             chains = await conn.fetch(
                 "SELECT * FROM attack_chains WHERE scan_id = $1 ORDER BY combined_severity", scan_id
             )
-        return {"scan": dict(scan), "findings": [dict(f) for f in findings], "attack_chains": [dict(c) for c in chains]}
+        return {
+            "scan": dict(scan),
+            "findings": [dict(f) for f in findings],
+            "attack_chains": [dict(c) for c in chains],
+        }
 
     @api.get("/api/scans/{scan_id}/report")
     async def get_report(scan_id: str) -> dict[str, str]:
         from vulnchain.db.connection import get_conn
+
         async with get_conn() as conn:
             scan = await conn.fetchrow("SELECT * FROM scans WHERE id = $1", scan_id)
             if not scan:
@@ -190,12 +204,13 @@ def create_app() -> FastAPI:
     @api.get("/api/stats")
     async def get_stats() -> dict[str, Any]:
         from vulnchain.db.connection import get_conn
+
         async with get_conn() as conn:
             total_scans = await conn.fetchval("SELECT COUNT(*) FROM scans") or 0
             total_findings = await conn.fetchval("SELECT COUNT(*) FROM findings") or 0
-            critical_findings = await conn.fetchval(
-                "SELECT COUNT(*) FROM findings WHERE severity IN ('critical','high')"
-            ) or 0
+            critical_findings = (
+                await conn.fetchval("SELECT COUNT(*) FROM findings WHERE severity IN ('critical','high')") or 0
+            )
             daily_rows = await conn.fetch(
                 """
                 SELECT DATE(created_at) AS date, COUNT(*) AS count
@@ -215,6 +230,7 @@ def create_app() -> FastAPI:
     @api.get("/api/repos")
     async def list_repos() -> dict[str, Any]:
         from vulnchain.db.connection import get_conn
+
         async with get_conn() as conn:
             rows = await conn.fetch(
                 """
@@ -228,6 +244,7 @@ def create_app() -> FastAPI:
     @api.get("/api/repos/{repo_name}/trend")
     async def repo_trend(repo_name: str) -> dict[str, Any]:
         from vulnchain.db.connection import get_conn
+
         async with get_conn() as conn:
             rows = await conn.fetch(
                 """
@@ -245,19 +262,24 @@ def create_app() -> FastAPI:
 
     class TriggerScanRequest(BaseModel):
         repo_url: str
-        pr_number: Optional[int] = None
-        commit_sha: Optional[str] = None
+        pr_number: int | None = None
+        commit_sha: str | None = None
 
     @api.post("/api/scans", status_code=202)
     async def trigger_scan(request: TriggerScanRequest) -> dict[str, str]:
         from vulnchain.db.connection import get_conn
+
         scan_id = str(uuid.uuid4())
         repo_name = request.repo_url.rstrip("/").split("/")[-1]
 
         async with get_conn() as conn:
             await conn.execute(
-                "INSERT INTO scans (id, repo_url, repo_name, pr_number, commit_sha, status) VALUES ($1,$2,$3,$4,$5,'pending')",
-                scan_id, request.repo_url, repo_name, request.pr_number, request.commit_sha,
+                "INSERT INTO scans (id, repo_url, repo_name, pr_number, commit_sha, status) VALUES ($1,$2,$3,$4,$5,'pending')",  # noqa: E501
+                scan_id,
+                request.repo_url,
+                repo_name,
+                request.pr_number,
+                request.commit_sha,
             )
 
         asyncio.create_task(_run_scan_background(scan_id, request.repo_url, request.pr_number, request.commit_sha))
@@ -266,12 +288,13 @@ def create_app() -> FastAPI:
     class InternalScanRequest(BaseModel):
         scan_id: str
         clone_url: str
-        sha: Optional[str] = None
+        sha: str | None = None
 
     @api.post("/internal/scan", status_code=202)
     async def internal_trigger_scan(request: InternalScanRequest) -> dict[str, str]:
         """Called by the webhook service after creating the scan DB record."""
         from vulnchain.db.connection import get_conn
+
         async with get_conn() as conn:
             exists = await conn.fetchval("SELECT 1 FROM scans WHERE id = $1", request.scan_id)
             if not exists:
@@ -282,28 +305,41 @@ def create_app() -> FastAPI:
     async def _run_scan_background(
         scan_id: str,
         repo_url: str,
-        pr_number: Optional[int],
-        commit_sha: Optional[str],
+        pr_number: int | None,
+        commit_sha: str | None,
     ) -> None:
         from vulnchain.agent.graph import build_graph
         from vulnchain.db.connection import get_conn
 
         graph = build_graph()
         initial_state = {
-            "repo_url": repo_url, "pr_number": pr_number, "commit_sha": commit_sha,
-            "scan_id": scan_id, "is_local": False, "repo_path": "",
-            "source_files": [], "commit_history": [], "ast_results": [],
-            "semgrep_findings": [], "ai_code_segments": [], "joern_findings": [],
-            "dependency_findings": [], "tech_profile": {},
+            "repo_url": repo_url,
+            "pr_number": pr_number,
+            "commit_sha": commit_sha,
+            "scan_id": scan_id,
+            "is_local": False,
+            "repo_path": "",
+            "source_files": [],
+            "commit_history": [],
+            "ast_results": [],
+            "semgrep_findings": [],
+            "ai_code_segments": [],
+            "joern_findings": [],
+            "dependency_findings": [],
+            "tech_profile": {},
             "llm_review_findings": [],
-            "threat_model": None, "attack_chains": [],
-            "report_markdown": "", "report_sarif": {}, "error": None,
+            "threat_model": None,
+            "attack_chains": [],
+            "report_markdown": "",
+            "report_sarif": {},
+            "error": None,
         }
         try:
             async with get_conn() as conn:
                 await conn.execute(
                     "UPDATE scans SET status='running', started_at=$1 WHERE id=$2",
-                    datetime.now(tz=timezone.utc), scan_id,
+                    datetime.now(tz=UTC),
+                    scan_id,
                 )
             final_state = await graph.ainvoke(initial_state)
             status = "failed" if final_state.get("error") else "done"
@@ -311,40 +347,59 @@ def create_app() -> FastAPI:
             async with get_conn() as conn:
                 await conn.execute(
                     "UPDATE scans SET status=$1, completed_at=$2, error_message=$3 WHERE id=$4",
-                    status, datetime.now(tz=timezone.utc), final_state.get("error"), scan_id,
+                    status,
+                    datetime.now(tz=UTC),
+                    final_state.get("error"),
+                    scan_id,
                 )
                 for f in final_state.get("semgrep_findings", []):
                     await conn.execute(
-                        "INSERT INTO findings (scan_id,source,rule_id,severity,file_path,line_start,line_end,message,fix_suggestion,raw_json) VALUES ($1,'semgrep',$2,$3,$4,$5,$6,$7,$8,$9)",
-                        scan_id, f.rule_id, f.severity, f.file_path, f.line_start, f.line_end, f.message, f.fix_suggestion, json.dumps(f.raw),
+                        "INSERT INTO findings (scan_id,source,rule_id,severity,file_path,line_start,line_end,message,fix_suggestion,raw_json) VALUES ($1,'semgrep',$2,$3,$4,$5,$6,$7,$8,$9)",  # noqa: E501
+                        scan_id,
+                        f.rule_id,
+                        f.severity,
+                        f.file_path,
+                        f.line_start,
+                        f.line_end,
+                        f.message,
+                        f.fix_suggestion,
+                        json.dumps(f.raw),
                     )
                 for f in final_state.get("joern_findings", []):
                     await conn.execute(
-                        "INSERT INTO findings (scan_id,source,rule_id,severity,file_path,line_start,message,raw_json) VALUES ($1,'joern',$2,$3,$4,$5,$6,$7)",
-                        scan_id, f.rule_id, f.severity, f.file_path, f.line, f"CPG: {f.method_name}", json.dumps(f.raw),
+                        "INSERT INTO findings (scan_id,source,rule_id,severity,file_path,line_start,message,raw_json) VALUES ($1,'joern',$2,$3,$4,$5,$6,$7)",  # noqa: E501
+                        scan_id,
+                        f.rule_id,
+                        f.severity,
+                        f.file_path,
+                        f.line,
+                        f"CPG: {f.method_name}",
+                        json.dumps(f.raw),
                     )
                 for f in final_state.get("dependency_findings", []):
                     await conn.execute(
-                        "INSERT INTO findings (scan_id,source,rule_id,severity,file_path,line_start,message,raw_json) VALUES ($1,'dependency',$2,$3,$4,0,$5,$6)",
+                        "INSERT INTO findings (scan_id,source,rule_id,severity,file_path,line_start,message,raw_json) VALUES ($1,'dependency',$2,$3,$4,0,$5,$6)",  # noqa: E501
                         scan_id,
                         f.cve_id,
                         f.severity,
                         f.manifest_file,
                         f"{f.package_name}@{f.installed_version}: {f.title}"
                         + (f" (fixed: {f.fixed_version})" if f.fixed_version else ""),
-                        json.dumps({
-                            "package": f.package_name,
-                            "version": f.installed_version,
-                            "ecosystem": f.ecosystem,
-                            "cve_id": f.cve_id,
-                            "cvss_score": f.cvss_score,
-                            "fixed_version": f.fixed_version,
-                            "description": f.description,
-                        }),
+                        json.dumps(
+                            {
+                                "package": f.package_name,
+                                "version": f.installed_version,
+                                "ecosystem": f.ecosystem,
+                                "cve_id": f.cve_id,
+                                "cvss_score": f.cvss_score,
+                                "fixed_version": f.fixed_version,
+                                "description": f.description,
+                            }
+                        ),
                     )
                 for f in final_state.get("llm_review_findings", []):
                     await conn.execute(
-                        "INSERT INTO findings (scan_id,source,rule_id,severity,file_path,line_start,message,raw_json) VALUES ($1,'llm_review',$2,$3,$4,$5,$6,$7)",
+                        "INSERT INTO findings (scan_id,source,rule_id,severity,file_path,line_start,message,raw_json) VALUES ($1,'llm_review',$2,$3,$4,$5,$6,$7)",  # noqa: E501
                         scan_id,
                         f.get("cwe_id", "llm-review"),
                         f.get("severity", "medium"),
@@ -355,18 +410,26 @@ def create_app() -> FastAPI:
                     )
                 for chain in final_state.get("attack_chains", []):
                     await conn.execute(
-                        "INSERT INTO attack_chains (scan_id,title,combined_severity,steps,finding_ids,business_impact,cvss_score) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-                        scan_id, chain.title, chain.combined_severity,
-                        json.dumps(chain.steps), json.dumps(chain.finding_ids), chain.business_impact, chain.cvss_estimate,
+                        "INSERT INTO attack_chains (scan_id,title,combined_severity,steps,finding_ids,business_impact,cvss_score) VALUES ($1,$2,$3,$4,$5,$6,$7)",  # noqa: E501
+                        scan_id,
+                        chain.title,
+                        chain.combined_severity,
+                        json.dumps(chain.steps),
+                        json.dumps(chain.finding_ids),
+                        chain.business_impact,
+                        chain.cvss_estimate,
                     )
         except Exception as exc:
             logger.error("Background scan %s failed: %s", scan_id, exc)
             try:
                 from vulnchain.db.connection import get_conn as _gc
+
                 async with _gc() as conn:
                     await conn.execute(
                         "UPDATE scans SET status='failed', completed_at=$1, error_message=$2 WHERE id=$3",
-                        datetime.now(tz=timezone.utc), str(exc), scan_id,
+                        datetime.now(tz=UTC),
+                        str(exc),
+                        scan_id,
                     )
             except Exception:
                 logger.error("Failed to update scan status to failed for %s", scan_id)

@@ -28,11 +28,25 @@ LANGUAGE_MAP: dict[str, str] = {
     ".java": "java",
 }
 
-SKIP_DIRS: frozenset[str] = frozenset([
-    "node_modules", ".git", "bin", "obj", "dist", "build",
-    ".next", "vendor", "__pycache__", ".venv", "venv",
-    ".tox", "coverage", ".mypy_cache", ".ruff_cache",
-])
+SKIP_DIRS: frozenset[str] = frozenset(
+    [
+        "node_modules",
+        ".git",
+        "bin",
+        "obj",
+        "dist",
+        "build",
+        ".next",
+        "vendor",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".tox",
+        "coverage",
+        ".mypy_cache",
+        ".ruff_cache",
+    ]
+)
 
 MAX_FILE_SIZE_BYTES = 500 * 1024  # 500 KB
 
@@ -102,13 +116,15 @@ def collect_source_files(repo_path: Path) -> list[SourceFile]:
                 logger.warning("Cannot read %s: %s", file_path, exc)
                 continue
 
-            source_files.append(SourceFile(
-                path=file_path,
-                relative_path=str(file_path.relative_to(repo_path)),
-                language=LANGUAGE_MAP[ext],
-                content=content,
-                size_bytes=size,
-            ))
+            source_files.append(
+                SourceFile(
+                    path=file_path,
+                    relative_path=str(file_path.relative_to(repo_path)),
+                    language=LANGUAGE_MAP[ext],
+                    content=content,
+                    size_bytes=size,
+                )
+            )
 
     logger.info("Collected %d source files from %s", len(source_files), repo_path)
     return source_files
@@ -133,16 +149,18 @@ def collect_commit_history(repo_path: Path, max_commits: int = 100) -> list[Comm
                 files_changed = []
                 total = {"insertions": 0, "deletions": 0}
 
-            commits.append(CommitInfo(
-                sha=commit.hexsha,
-                message=commit.message.strip(),
-                author=str(commit.author.name),
-                author_email=str(commit.author.email),
-                timestamp=int(commit.committed_date),
-                files_changed=files_changed,
-                additions=total.get("insertions", 0),
-                deletions=total.get("deletions", 0),
-            ))
+            commits.append(
+                CommitInfo(
+                    sha=commit.hexsha,
+                    message=commit.message.strip(),
+                    author=str(commit.author.name),
+                    author_email=str(commit.author.email),
+                    timestamp=int(commit.committed_date),
+                    files_changed=files_changed,
+                    additions=total.get("insertions", 0),
+                    deletions=total.get("deletions", 0),
+                )
+            )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Error reading commit history: %s", exc)
 

@@ -1,7 +1,7 @@
 """Markdown and SARIF report generation."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from vulnchain.agent.state import ScanState
@@ -9,15 +9,23 @@ from vulnchain.agent.state import ScanState
 logger = logging.getLogger(__name__)
 
 _SEVERITY_EMOJI = {
-    "critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "⚪",
+    "critical": "🔴",
+    "high": "🟠",
+    "medium": "🟡",
+    "low": "🔵",
+    "info": "⚪",
 }
 _SARIF_LEVEL = {
-    "critical": "error", "high": "error", "medium": "warning", "low": "note", "info": "none",
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "low": "note",
+    "info": "none",
 }
 
 
 def generate_markdown(state: ScanState) -> str:
-    now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
     repo = state.get("repo_url", "unknown")
     scan_id = state.get("scan_id", "unknown")
     semgrep = state.get("semgrep_findings", [])
@@ -27,7 +35,7 @@ def generate_markdown(state: ScanState) -> str:
     threat_model = state.get("threat_model") or {}
 
     severity_order = ["critical", "high", "medium", "low", "info"]
-    counts: dict[str, int] = {s: 0 for s in severity_order}
+    counts: dict[str, int] = dict.fromkeys(severity_order, 0)
     for f in semgrep:
         sev = getattr(f, "severity", "info")
         if sev in counts:
@@ -39,14 +47,19 @@ def generate_markdown(state: ScanState) -> str:
 
     total = len(semgrep) + len(joern)
     lines: list[str] = [
-        "# RedTeam Security Report", "",
+        "# RedTeam Security Report",
+        "",
         f"**Repository:** {repo}",
         f"**Scan ID:** `{scan_id}`",
         f"**Generated:** {now}",
         f"**Total Findings:** {total}",
-        "", "---", "",
-        "## Executive Summary", "",
-        "| Severity | Count |", "| --- | --- |",
+        "",
+        "---",
+        "",
+        "## Executive Summary",
+        "",
+        "| Severity | Count |",
+        "| --- | --- |",
     ]
     for sev in severity_order:
         lines.append(f"| {_SEVERITY_EMOJI.get(sev, '')} {sev.capitalize()} | {counts[sev]} |")
@@ -68,10 +81,13 @@ def generate_markdown(state: ScanState) -> str:
             sev = getattr(chain, "combined_severity", "high")
             cvss = getattr(chain, "cvss_estimate", 0.0)
             lines += [
-                f"### {i}. {_SEVERITY_EMOJI.get(sev, '')} {chain.title}", "",
+                f"### {i}. {_SEVERITY_EMOJI.get(sev, '')} {chain.title}",
+                "",
                 f"**Combined Severity:** {sev.upper()}  ",
-                f"**CVSS Estimate:** {cvss}", "",
-                "**Attack Steps:**", "",
+                f"**CVSS Estimate:** {cvss}",
+                "",
+                "**Attack Steps:**",
+                "",
             ]
             for step in chain.steps:
                 lines.append(f"1. {step}")
@@ -87,7 +103,10 @@ def generate_markdown(state: ScanState) -> str:
             sev = t.get("severity", "high")
             lines += [
                 f"### {_SEVERITY_EMOJI.get(sev, '')} {t.get('threat_type', '')} — {t.get('component', '')}",
-                "", t.get("description", ""), "", "**Mitigations:**",
+                "",
+                t.get("description", ""),
+                "",
+                "**Mitigations:**",
             ]
             for m in t.get("mitigations", []):
                 lines.append(f"- {m}")
@@ -99,7 +118,10 @@ def generate_markdown(state: ScanState) -> str:
             sev_findings = [f for f in semgrep if getattr(f, "severity", "info") == sev]
             if not sev_findings:
                 continue
-            lines += [f"### {_SEVERITY_EMOJI.get(sev, '')} {sev.capitalize()} ({len(sev_findings)})", ""]
+            lines += [
+                f"### {_SEVERITY_EMOJI.get(sev, '')} {sev.capitalize()} ({len(sev_findings)})",
+                "",
+            ]
             for f in sev_findings:
                 lines += [
                     f"#### `{f.rule_id}`",
@@ -114,16 +136,26 @@ def generate_markdown(state: ScanState) -> str:
         lines += ["---", "", "## Joern CPG Findings", ""]
         for f in joern:
             sev = getattr(f, "severity", "high")
-            lines.append(f"- {_SEVERITY_EMOJI.get(sev, '')} **`{f.rule_id}`** | `{f.file_path}:{f.line}` | `{f.method_name}`")
+            lines.append(
+                f"- {_SEVERITY_EMOJI.get(sev, '')} **`{f.rule_id}`** | `{f.file_path}:{f.line}` | `{f.method_name}`"
+            )
         lines.append("")
 
     if ai_segs:
         lines += [
-            "---", "", "## AI-Generated Code Segments", "",
-            "Files below contain patterns consistent with AI code generation tools.", "",
+            "---",
+            "",
+            "## AI-Generated Code Segments",
+            "",
+            "Files below contain patterns consistent with AI code generation tools.",
+            "",
         ]
         for seg in ai_segs:
-            lines += [f"### `{seg.file_path}` (confidence: {seg.confidence:.0%})", "", "**Signals:**"]
+            lines += [
+                f"### `{seg.file_path}` (confidence: {seg.confidence:.0%})",
+                "",
+                "**Signals:**",
+            ]
             for signal in seg.signals:
                 lines.append(f"- {signal}")
             lines.append("")
@@ -147,15 +179,21 @@ def generate_sarif(state: ScanState) -> dict[str, Any]:
                 "shortDescription": {"text": f.message[:100]},
                 "properties": {"tags": ["security", "semgrep"]},
             }
-        results.append({
-            "ruleId": f.rule_id,
-            "level": _SARIF_LEVEL.get(f.severity, "warning"),
-            "message": {"text": f.message},
-            "locations": [{"physicalLocation": {
-                "artifactLocation": {"uri": f.file_path},
-                "region": {"startLine": f.line_start, "endLine": f.line_end},
-            }}],
-        })
+        results.append(
+            {
+                "ruleId": f.rule_id,
+                "level": _SARIF_LEVEL.get(f.severity, "warning"),
+                "message": {"text": f.message},
+                "locations": [
+                    {
+                        "physicalLocation": {
+                            "artifactLocation": {"uri": f.file_path},
+                            "region": {"startLine": f.line_start, "endLine": f.line_end},
+                        }
+                    }
+                ],
+            }
+        )
 
     for f in joern:
         if f.rule_id not in rules:
@@ -165,29 +203,37 @@ def generate_sarif(state: ScanState) -> dict[str, Any]:
                 "shortDescription": {"text": f"CPG analysis: {f.rule_id}"},
                 "properties": {"tags": ["security", "joern", "cpg"]},
             }
-        results.append({
-            "ruleId": f.rule_id,
-            "level": _SARIF_LEVEL.get(f.severity, "warning"),
-            "message": {"text": f"Method: {f.method_name}"},
-            "locations": [{"physicalLocation": {
-                "artifactLocation": {"uri": f.file_path},
-                "region": {"startLine": f.line},
-            }}],
-        })
+        results.append(
+            {
+                "ruleId": f.rule_id,
+                "level": _SARIF_LEVEL.get(f.severity, "warning"),
+                "message": {"text": f"Method: {f.method_name}"},
+                "locations": [
+                    {
+                        "physicalLocation": {
+                            "artifactLocation": {"uri": f.file_path},
+                            "region": {"startLine": f.line},
+                        }
+                    }
+                ],
+            }
+        )
 
     return {
         "version": "2.1.0",
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
-        "runs": [{
-            "tool": {
-                "driver": {
-                    "name": "RedTeam Agent",
-                    "version": "0.1.0",
-                    "informationUri": "https://sarajevo.is",
-                    "rules": list(rules.values()),
-                }
-            },
-            "results": results,
-            "versionControlProvenance": [{"repositoryUri": repo_url}] if repo_url else [],
-        }],
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "RedTeam Agent",
+                        "version": "0.1.0",
+                        "informationUri": "https://sarajevo.is",
+                        "rules": list(rules.values()),
+                    }
+                },
+                "results": results,
+                "versionControlProvenance": [{"repositoryUri": repo_url}] if repo_url else [],
+            }
+        ],
     }

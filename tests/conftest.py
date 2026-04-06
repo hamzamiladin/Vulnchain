@@ -1,22 +1,20 @@
 """Shared pytest fixtures."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-from vulnchain.ingestion.models import SourceFile, CommitInfo
+
 from vulnchain.analysis.models import (
-    SemgrepFinding,
-    JoernFinding,
-    AICodeSegment,
-    ThreatModel,
     AttackChain,
+    JoernFinding,
+    SemgrepFinding,
 )
+from vulnchain.ingestion.models import CommitInfo, SourceFile
 
 
 @pytest.fixture
 def python_source_file():
     return SourceFile(
         relative_path="app/routes.py",
-        content='''\
+        content="""\
 from flask import Flask, request
 app = Flask(__name__)
 
@@ -29,7 +27,7 @@ def get_users():
     # TODO: add error handling
     result = db.execute(query)
     return result
-''',
+""",
         language="python",
         size_bytes=300,
     )
@@ -39,7 +37,7 @@ def get_users():
 def csharp_source_file():
     return SourceFile(
         relative_path="Controllers/UserController.cs",
-        content='''\
+        content="""\
 [HttpGet("/api/users")]
 public IActionResult GetUsers(string id) {
     var query = "SELECT * FROM Users WHERE Id=" + id;
@@ -49,7 +47,7 @@ public IActionResult GetUsers(string id) {
 [HttpPost("/api/admin")]
 [Authorize]
 public IActionResult Admin() { return Ok(); }
-''',
+""",
         language="csharp",
         size_bytes=250,
     )

@@ -8,7 +8,11 @@ from vulnchain.agent.state import ScanState
 logger = logging.getLogger(__name__)
 
 _SEVERITY_EMOJI = {
-    "critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "⚪",
+    "critical": "🔴",
+    "high": "🟠",
+    "medium": "🟡",
+    "low": "🔵",
+    "info": "⚪",
 }
 
 
@@ -27,17 +31,27 @@ def render_pr_comment(state: ScanState) -> PRComment:
     attack_chains = state.get("attack_chains", [])
 
     all_findings = [
-        {"severity": f.severity, "rule_id": f.rule_id, "file": f.file_path,
-         "line": f.line_start, "message": f.message}
+        {
+            "severity": f.severity,
+            "rule_id": f.rule_id,
+            "file": f.file_path,
+            "line": f.line_start,
+            "message": f.message,
+        }
         for f in semgrep
     ] + [
-        {"severity": f.severity, "rule_id": f.rule_id, "file": f.file_path,
-         "line": f.line, "message": f"CPG: {f.method_name}"}
+        {
+            "severity": f.severity,
+            "rule_id": f.rule_id,
+            "file": f.file_path,
+            "line": f.line,
+            "message": f"CPG: {f.method_name}",
+        }
         for f in joern
     ]
 
     severity_order = ["critical", "high", "medium", "low", "info"]
-    counts = {sev: 0 for sev in severity_order}
+    counts = dict.fromkeys(severity_order, 0)
     for f in all_findings:
         sev = f.get("severity", "info")
         if sev in counts:
@@ -47,8 +61,10 @@ def render_pr_comment(state: ScanState) -> PRComment:
     critical_high = counts["critical"] + counts["high"]
 
     lines = [
-        "## 🔍 RedTeam Security Scan Results", "",
-        "| Severity | Count |", "| --- | --- |",
+        "## 🔍 RedTeam Security Scan Results",
+        "",
+        "| Severity | Count |",
+        "| --- | --- |",
     ]
     for sev in severity_order:
         if counts[sev] > 0:
@@ -77,8 +93,10 @@ def render_pr_comment(state: ScanState) -> PRComment:
 
     if ai_segs:
         lines += [
-            "### 🤖 AI-Generated Code Detected", "",
-            f"{len(ai_segs)} file(s) contain likely AI-generated code segments.", "",
+            "### 🤖 AI-Generated Code Detected",
+            "",
+            f"{len(ai_segs)} file(s) contain likely AI-generated code segments.",
+            "",
         ]
 
     if critical_high == 0:

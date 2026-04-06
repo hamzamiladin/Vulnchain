@@ -4,10 +4,19 @@ import uuid
 from typing import Any
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Column, DateTime, Float,
-    ForeignKey, Index, Integer, String, Text, func,
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -60,7 +69,10 @@ class Finding(Base):
     scan: Any = relationship("Scan", back_populates="findings")
 
     __table_args__ = (
-        CheckConstraint("source IN ('semgrep','joern','ai_detector','llm_review','dependency','progpilot','pysa')", name="ck_findings_source"),
+        CheckConstraint(
+            "source IN ('semgrep','joern','ai_detector','llm_review','dependency','progpilot','pysa')",
+            name="ck_findings_source",
+        ),
         CheckConstraint("severity IN ('critical','high','medium','low','info')", name="ck_findings_severity"),
         Index("idx_findings_scan_id", "scan_id"),
         Index("idx_findings_severity", "severity"),

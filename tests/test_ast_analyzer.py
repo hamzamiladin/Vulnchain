@@ -1,6 +1,5 @@
 """Tests for AST analyzer."""
 
-import pytest
 from vulnchain.analysis.ast_analyzer import analyze_file
 from vulnchain.ingestion.models import SourceFile
 
