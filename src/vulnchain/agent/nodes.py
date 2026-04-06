@@ -1,4 +1,4 @@
-"""LangGraph node functions for the RedTeam scan pipeline."""
+"""LangGraph node functions for the Vulnchain scan pipeline."""
 
 import json
 import logging
@@ -20,7 +20,6 @@ from vulnchain.analysis.joern_runner import run_all_joern_queries
 from vulnchain.analysis.semgrep_scanner import run_semgrep
 from vulnchain.config import get_settings
 from vulnchain.ingestion.repo import (
-    cleanup_scan_dir,
     clone_repo,
     collect_commit_history,
     collect_source_files,
@@ -79,7 +78,11 @@ def clone_repo_node(state: ScanState) -> dict[str, Any]:
 
         source_files = collect_source_files(repo_path)
         commit_history = collect_commit_history(repo_path)
-        logger.info("[clone_repo] collected %d files, %d commits", len(source_files), len(commit_history))
+        logger.info(
+            "[clone_repo] collected %d files, %d commits",
+            len(source_files),
+            len(commit_history),
+        )
         return {
             "repo_path": str(repo_path),
             "source_files": source_files,
