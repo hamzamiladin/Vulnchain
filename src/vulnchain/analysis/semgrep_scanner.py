@@ -4,6 +4,7 @@ import json
 import logging
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from vulnchain.analysis.models import SemgrepFinding
 from vulnchain.config import get_settings
@@ -95,7 +96,7 @@ def run_semgrep(repo_path: str) -> list[SemgrepFinding]:
     return findings
 
 
-def _parse_semgrep_finding(raw: dict[str, object]) -> SemgrepFinding:
+def _parse_semgrep_finding(raw: dict[str, Any]) -> SemgrepFinding:
     check_id = raw.get("check_id", "unknown")
     severity_raw = raw.get("extra", {}).get("severity", "WARNING").upper()
     severity = _SEVERITY_MAP.get(severity_raw, "medium")

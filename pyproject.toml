@@ -73,6 +73,7 @@ module = [
     "vulnchain.analysis.dependency_scanner",
     "vulnchain.api.app",
     "vulnchain.ingestion.repo",
+    "vulnchain.main",
 ]
 ignore_errors = true
 

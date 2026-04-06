@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from vulnchain.analysis.models import JoernFinding
 from vulnchain.config import get_settings
@@ -85,7 +86,7 @@ def _run_script_on_cpg(
     script_name: str,
     cpg_path: str,
     workspace_dir: str,
-) -> list[dict[str, object]]:
+) -> list[dict[str, Any]]:
     """
     Run a single Joern script against a pre-built binary CPG file.
     The script receives `cpgFile` instead of `inputDir`.
@@ -119,6 +120,7 @@ def _run_script_on_cpg(
         )
 
         import contextlib
+
         out = ""
         with contextlib.suppress(OSError):
             out = Path(out_path).read_text(encoding="utf-8").strip()

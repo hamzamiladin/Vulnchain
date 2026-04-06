@@ -135,7 +135,7 @@ _PLACEHOLDER_LITERAL_RE = re.compile(
 
 # ── Comment-density helpers ───────────────────────────────────────────────────
 
-_COMMENT_PATTERNS: dict[str, re.Pattern] = {
+_COMMENT_PATTERNS: dict[str, re.Pattern[str]] = {
     "python": re.compile(r"^\s*#"),
     "javascript": re.compile(r"^\s*(?://|/\*)"),
     "typescript": re.compile(r"^\s*(?://|/\*)"),
