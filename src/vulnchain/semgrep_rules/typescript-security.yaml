@@ -11,14 +11,14 @@ rules:
       - pattern: new Function($X)
       - patterns:
           - pattern: setTimeout($X, ...)
-          - metavariable-type:
+          - metavariable-regex:
               metavariable: $X
-              types: [string]
+              regex: '^["`]'
       - patterns:
           - pattern: setInterval($X, ...)
-          - metavariable-type:
+          - metavariable-regex:
               metavariable: $X
-              types: [string]
+              regex: '^["`]'
 
   - id: typescript-prototype-pollution
     languages: [typescript, javascript]
