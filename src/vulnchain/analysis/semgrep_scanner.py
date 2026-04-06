@@ -74,16 +74,27 @@ def run_semgrep(repo_path: str) -> list[SemgrepFinding]:
         logger.error("Semgrep not found — install with: pip install semgrep")
         return []
 
-    # 0 = no findings, 1 = findings found, 2+ = error
-    if result.returncode not in (0, 1):
-        logger.warning("Semgrep exited %d: %s", result.returncode, result.stderr[:300])
+    # 0 = no findings, 1 = findings found, 2 = partial results / parse errors
+    # Exit 2 still emits valid JSON with a partial "results" array — parse it.
+    if result.returncode not in (0, 1, 2):
+        diag = (result.stderr or result.stdout)[:400]
+        logger.warning("Semgrep exited %d: %s", result.returncode, diag)
         return []
 
     try:
         data = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
-        logger.error("Failed to parse Semgrep JSON output: %s", exc)
+        diag = (result.stderr or result.stdout)[:400]
+        logger.error("Failed to parse Semgrep JSON output: %s — raw: %s", exc, diag)
         return []
+
+    if result.returncode == 2:
+        errors = data.get("errors", [])
+        logger.warning(
+            "Semgrep exited 2 (parse/rule errors) — %d error(s): %s",
+            len(errors),
+            "; ".join(e.get("message", str(e)) for e in errors[:3]),
+        )
 
     findings: list[SemgrepFinding] = []
     for raw in data.get("results", []):
