@@ -85,7 +85,7 @@ def _run_script_on_cpg(
     script_name: str,
     cpg_path: str,
     workspace_dir: str,
-) -> list[dict]:
+) -> list[dict[str, object]]:
     """
     Run a single Joern script against a pre-built binary CPG file.
     The script receives `cpgFile` instead of `inputDir`.

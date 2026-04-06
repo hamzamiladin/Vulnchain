@@ -95,7 +95,7 @@ def run_semgrep(repo_path: str) -> list[SemgrepFinding]:
     return findings
 
 
-def _parse_semgrep_finding(raw: dict) -> SemgrepFinding:
+def _parse_semgrep_finding(raw: dict[str, object]) -> SemgrepFinding:
     check_id = raw.get("check_id", "unknown")
     severity_raw = raw.get("extra", {}).get("severity", "WARNING").upper()
     severity = _SEVERITY_MAP.get(severity_raw, "medium")

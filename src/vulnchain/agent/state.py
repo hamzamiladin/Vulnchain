@@ -1,6 +1,6 @@
-"""LangGraph state definition for the RedTeam scan pipeline."""
+"""LangGraph state definition for the Vulnchain scan pipeline."""
 
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class ScanState(TypedDict):
@@ -13,23 +13,23 @@ class ScanState(TypedDict):
 
     # Ingestion
     repo_path: str
-    source_files: list
-    commit_history: list
+    source_files: list[Any]
+    commit_history: list[Any]
 
     # Analysis
-    ast_results: list
-    semgrep_findings: list
-    ai_code_segments: list
-    joern_findings: list
-    dependency_findings: list  # CVEs from OSV API
-    tech_profile: dict | None  # detected frameworks/versions
+    ast_results: list[Any]
+    semgrep_findings: list[Any]
+    ai_code_segments: list[Any]
+    joern_findings: list[Any]
+    dependency_findings: list[Any]  # CVEs from OSV API
+    tech_profile: dict[str, Any] | None  # detected frameworks/versions
 
     # LLM reasoning
-    llm_review_findings: list
-    threat_model: dict | None
-    attack_chains: list
+    llm_review_findings: list[Any]
+    threat_model: dict[str, Any] | None
+    attack_chains: list[Any]
 
     # Output
     report_markdown: str
-    report_sarif: dict
+    report_sarif: dict[str, Any]
     error: str | None
