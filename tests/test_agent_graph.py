@@ -14,13 +14,18 @@ def minimal_state() -> ScanState:
         scan_id="test-scan-001",
         repo_url="https://github.com/example/repo",
         commit_sha="abc123",
-        work_dir=None,
+        pr_number=None,
+        is_local=False,
+        repo_path="",
         source_files=[],
-        commits=[],
+        commit_history=[],
         ast_results=[],
         semgrep_findings=[],
         joern_findings=[],
         ai_code_segments=[],
+        dependency_findings=[],
+        tech_profile=None,
+        llm_review_findings=[],
         threat_model=None,
         attack_chains=[],
         report_markdown="",
@@ -56,7 +61,7 @@ def test_state_error_initially_none(minimal_state):
     assert minimal_state["error"] is None
 
 
-@patch("vulnchain.agent.nodes.clone_or_open_repo")
+@patch("vulnchain.agent.nodes.clone_repo")
 @patch("vulnchain.agent.nodes.collect_source_files")
 @patch("vulnchain.agent.nodes.collect_commit_history")
 def test_clone_repo_node_sets_source_files(mock_commits, mock_files, mock_clone, minimal_state):
@@ -66,8 +71,6 @@ def test_clone_repo_node_sets_source_files(mock_commits, mock_files, mock_clone,
     mock_files.return_value = []
     mock_commits.return_value = []
 
-    import asyncio
-
-    result = asyncio.get_event_loop().run_until_complete(clone_repo_node(minimal_state))
+    result = clone_repo_node(minimal_state)
     assert "source_files" in result
-    assert "commits" in result
+    assert "commit_history" in result

@@ -1,5 +1,7 @@
 """Shared pytest fixtures."""
 
+from pathlib import Path
+
 import pytest
 
 from vulnchain.analysis.models import (
@@ -13,9 +15,11 @@ from vulnchain.ingestion.models import CommitInfo, SourceFile
 @pytest.fixture
 def python_source_file():
     return SourceFile(
+        path=Path("app/routes.py"),
         relative_path="app/routes.py",
         content="""\
 from flask import Flask, request
+import requests as req
 app = Flask(__name__)
 
 def helper():
@@ -26,6 +30,7 @@ def get_users():
     query = "SELECT * FROM users WHERE id=" + request.args.get("id", "")
     # TODO: add error handling
     result = db.execute(query)
+    data = req.get("http://internal", verify=False)
     return result
 """,
         language="python",
@@ -36,6 +41,7 @@ def get_users():
 @pytest.fixture
 def csharp_source_file():
     return SourceFile(
+        path=Path("Controllers/UserController.cs"),
         relative_path="Controllers/UserController.cs",
         content="""\
 [HttpGet("/api/users")]
@@ -59,7 +65,8 @@ def ai_commit():
         sha="abc12345def67890",
         message="Co-authored-by: GitHub Copilot <copilot@github.com>",
         author="dev@example.com",
-        timestamp="2024-01-15T10:00:00Z",
+        author_email="dev@example.com",
+        timestamp=1705312800,
         files_changed=["app/routes.py"],
         additions=120,
         deletions=5,
@@ -72,7 +79,8 @@ def normal_commit():
         sha="111222333444555",
         message="fix: correct typo in variable name",
         author="dev@example.com",
-        timestamp="2024-01-16T10:00:00Z",
+        author_email="dev@example.com",
+        timestamp=1705399200,
         files_changed=["app/routes.py"],
         additions=2,
         deletions=2,
@@ -110,11 +118,10 @@ def sample_joern_finding():
 def sample_attack_chain():
     return AttackChain(
         title="SQL Injection → Data Exfiltration",
-        severity="critical",
-        description="Attacker exploits SQLi to dump user table.",
         steps=["Send crafted GET /users?id=1 OR 1=1", "Execute raw SQL", "Exfiltrate data"],
         finding_ids=["finding-1", "finding-2"],
-        likelihood=4,
-        impact=5,
-        cvss_score=9.1,
+        combined_severity="critical",
+        individual_severities=["critical", "high"],
+        business_impact="Attacker exploits SQLi to dump user table.",
+        cvss_estimate=9.1,
     )
