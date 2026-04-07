@@ -401,4 +401,4 @@ If you discover a security vulnerability in Vulnchain itself, please follow the 
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2024 Vulnchain Contributors
+[MIT](LICENSE) — Copyright (c) 2026 Vulnchain Contributors
